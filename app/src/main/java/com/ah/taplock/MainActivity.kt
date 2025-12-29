@@ -4,11 +4,16 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +65,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ah.taplock.ui.theme.TapLockTheme
 import androidx.core.content.edit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
 
@@ -81,11 +92,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TapLockScreen() {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val githubUrl = stringResource(R.string.github_url)
     val sharedPrefName = stringResource(R.string.shared_pref_name)
     val doubleTapTimeoutKey = stringResource(R.string.double_tap_timeout)
     val timeoutUpdatedMsg = stringResource(R.string.timeout_updated)
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
+    val customIconUpdatedMsg = stringResource(R.string.custom_icon_updated)
+    val customIconResetMsg = stringResource(R.string.custom_icon_reset)
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
@@ -103,6 +117,42 @@ fun TapLockScreen() {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
         timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toString()
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
+    }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                            val bitmap = BitmapFactory.decodeStream(inputStream)
+                            // Scale down if necessary to avoid TransactionTooLargeException
+                            val scaledBitmap = if (bitmap.width > 512 || bitmap.height > 512) {
+                                Bitmap.createScaledBitmap(bitmap, 512, 512, true)
+                            } else {
+                                bitmap
+                            }
+                            val file = File(context.filesDir, "custom_widget_icon.png")
+                            FileOutputStream(file).use { out ->
+                                scaledBitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                            }
+                        }
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, customIconUpdatedMsg, Toast.LENGTH_SHORT).show()
+                            // Update Widgets
+                            val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
+                            val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
+                                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                            }
+                            context.sendBroadcast(intent)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
     }
 
     val uriHandler = LocalUriHandler.current
@@ -293,6 +343,42 @@ fun TapLockScreen() {
                             context.sendBroadcast(intent)
                         }
                     )
+                }
+
+                if (showIcon) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.select_icon))
+                        }
+                        Button(
+                            onClick = {
+                                val file = File(context.filesDir, "custom_widget_icon.png")
+                                if (file.exists()) {
+                                    file.delete()
+                                    Toast.makeText(context, customIconResetMsg, Toast.LENGTH_SHORT).show()
+                                    // Update Widgets
+                                    val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
+                                    val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
+                                        action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                                    }
+                                    context.sendBroadcast(intent)
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.reset_icon))
+                        }
+                    }
                 }
             }
         }

@@ -5,8 +5,10 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.view.View
 import android.widget.RemoteViews
+import java.io.File
 
 class TapLockWidgetProvider : AppWidgetProvider() {
 
@@ -55,6 +57,13 @@ class TapLockWidgetProvider : AppWidgetProvider() {
                 getPendingSelfIntent(context, appWidgetId)
             )
             if (showIcon) {
+                val customIconFile = File(context.filesDir, "custom_widget_icon.png")
+                if (customIconFile.exists()) {
+                    val bitmap = BitmapFactory.decodeFile(customIconFile.absolutePath)
+                    setImageViewBitmap(R.id.widget_icon, bitmap)
+                } else {
+                    setImageViewResource(R.id.widget_icon, R.mipmap.ic_launcher)
+                }
                 setViewVisibility(R.id.widget_icon, View.VISIBLE)
             } else {
                 setViewVisibility(R.id.widget_icon, View.GONE)
