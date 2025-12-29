@@ -71,6 +71,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import androidx.core.graphics.scale
 
 class MainActivity : ComponentActivity() {
 
@@ -129,7 +130,7 @@ fun TapLockScreen() {
                             val bitmap = BitmapFactory.decodeStream(inputStream)
                             // Scale down if necessary to avoid TransactionTooLargeException
                             val scaledBitmap = if (bitmap.width > 512 || bitmap.height > 512) {
-                                Bitmap.createScaledBitmap(bitmap, 512, 512, true)
+                                bitmap.scale(512, 512)
                             } else {
                                 bitmap
                             }

@@ -1,5 +1,3 @@
-@file:Suppress("UnstableApiUsage", "UnstableApiUsage")
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,8 +12,8 @@ android {
         applicationId = "com.ah.taplock"
         minSdk = 31
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.2"
+        versionCode = 7
+        versionName = "1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -28,13 +26,6 @@ android {
                 "proguard-rules.pro"
             )
         }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = libs.versions.composeBom.get()
     }
     buildFeatures {
         compose = true
@@ -59,4 +50,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+kotlin {
+    jvmToolchain(21)
 }
