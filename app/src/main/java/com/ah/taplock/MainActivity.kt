@@ -79,6 +79,10 @@ class MainActivity : ComponentActivity() {
 fun TapLockScreen() {
     val context = LocalContext.current
     val githubUrl = stringResource(R.string.github_url)
+    val sharedPrefName = stringResource(R.string.shared_pref_name)
+    val doubleTapTimeoutKey = stringResource(R.string.double_tap_timeout)
+    val timeoutUpdatedMsg = stringResource(R.string.timeout_updated)
+
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -91,8 +95,8 @@ fun TapLockScreen() {
     var timeoutValue by remember { mutableStateOf("") }
     LaunchedEffect(Unit) {
         timeoutValue = context
-            .getSharedPreferences(R.string.shared_pref_name.toString(), Context.MODE_PRIVATE)
-            .getInt(context.getString(R.string.double_tap_timeout), 300)
+            .getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+            .getInt(doubleTapTimeoutKey, 300)
             .toString()
     }
 
@@ -244,14 +248,14 @@ fun TapLockScreen() {
                     Button(
                         enabled = timeoutValue.isNotEmpty(),
                         onClick = {
-                            context.getSharedPreferences(R.string.shared_pref_name.toString(), Context.MODE_PRIVATE)
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                                 .edit {
                                     putInt(
-                                        context.getString(R.string.double_tap_timeout),
+                                        doubleTapTimeoutKey,
                                         timeoutValue.toInt()
                                     )
                                 }
-                            Toast.makeText(context, context.getString(R.string.timeout_updated), Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, timeoutUpdatedMsg, Toast.LENGTH_SHORT).show()
                             keyboardController?.hide()
                             focusManager.clearFocus()
                         }

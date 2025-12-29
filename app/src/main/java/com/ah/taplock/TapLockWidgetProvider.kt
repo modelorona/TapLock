@@ -55,7 +55,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
     }
 
     private fun handleWidgetTap(context: Context) {
-        val prefs = context.getSharedPreferences(R.string.shared_pref_name.toString(), Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(context.getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
         val timeout = prefs.getInt(context.getString(R.string.double_tap_timeout), 300)
 
         val currentTime = System.currentTimeMillis()
