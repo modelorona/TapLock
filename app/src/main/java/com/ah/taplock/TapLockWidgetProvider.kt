@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.view.View
 import android.widget.RemoteViews
 
 class TapLockWidgetProvider : AppWidgetProvider() {
@@ -45,11 +46,19 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
+        val prefs = context.getSharedPreferences(context.getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
+        val showIcon = prefs.getBoolean(context.getString(R.string.show_widget_icon), false)
+
         val views = RemoteViews(context.packageName, R.layout.widget_layout).apply {
             setOnClickPendingIntent(
                 R.id.widget_container,
                 getPendingSelfIntent(context, appWidgetId)
             )
+            if (showIcon) {
+                setViewVisibility(R.id.widget_icon, View.VISIBLE)
+            } else {
+                setViewVisibility(R.id.widget_icon, View.GONE)
+            }
         }
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }

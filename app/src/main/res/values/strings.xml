@@ -3,6 +3,12 @@
     <string name="app_name_short">TapLock</string>
     <string name="shared_pref_name">com.ah.taplock.SHARED_PREFERENCES_Key</string>
     <string name="double_tap_timeout">double_tap_timeout</string>
+    <string name="show_widget_icon">show_widget_icon</string>
+    <string name="show_widget_icon_label">Show Widget Icon</string>
+    <string name="select_icon">Select Icon</string>
+    <string name="reset_icon">Reset Default</string>
+    <string name="custom_icon_updated">Custom icon updated</string>
+    <string name="custom_icon_reset">Custom icon reset</string>
     <string name="accessibility_service_description">The TapLock accessibility service is necessary to be able to power off the screen.</string>
     <string name="home_screen_description">With this app, you can create a resizable transparent widget for your home screen. Double-tap the widget to lock your phone instantly! Accessibility permissions are required for this to work.</string>
     <string name="home_screen_disclaimer">This app collects no personal information and does not access your data. For transparency, the source code is available via the link below:</string>

@@ -1,5 +1,7 @@
 package com.ah.taplock
 
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -27,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -82,6 +85,7 @@ fun TapLockScreen() {
     val sharedPrefName = stringResource(R.string.shared_pref_name)
     val doubleTapTimeoutKey = stringResource(R.string.double_tap_timeout)
     val timeoutUpdatedMsg = stringResource(R.string.timeout_updated)
+    val showWidgetIconKey = stringResource(R.string.show_widget_icon)
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
@@ -93,11 +97,12 @@ fun TapLockScreen() {
     }
 
     var timeoutValue by remember { mutableStateOf("") }
+    var showIcon by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
-        timeoutValue = context
-            .getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-            .getInt(doubleTapTimeoutKey, 300)
-            .toString()
+        val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+        timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toString()
+        showIcon = prefs.getBoolean(showWidgetIconKey, false)
     }
 
     val uriHandler = LocalUriHandler.current
@@ -262,6 +267,32 @@ fun TapLockScreen() {
                     ) {
                         Text(stringResource(R.string.update))
                     }
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.show_widget_icon_label))
+                    Switch(
+                        checked = showIcon,
+                        onCheckedChange = { isChecked ->
+                            showIcon = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit {
+                                    putBoolean(showWidgetIconKey, isChecked)
+                                }
+
+                            // Update Widgets
+                            val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
+                            val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
+                                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                            }
+                            context.sendBroadcast(intent)
+                        }
+                    )
                 }
             }
         }
