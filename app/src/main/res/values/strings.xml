@@ -27,4 +27,6 @@
     <string name="accessibility_permission_description">TapLock needs accessibility services to detect double taps and lock the screen. TapLock does not collect any other data or interaction that you have with your device.</string>
     <string name="agree">Agree</string>
     <string name="not_now">Not now</string>
+    <string name="tile_label">Lock Now</string>
+    <string name="accessibility_permission_required">Accessibility permission required</string>
 </resources>
