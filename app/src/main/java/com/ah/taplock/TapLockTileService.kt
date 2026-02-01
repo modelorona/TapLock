@@ -18,7 +18,7 @@ class TapLockTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        
+
         // Try direct call first for speed
         val service = TapLockAccessibilityService.instance
         if (service != null) {
@@ -28,6 +28,7 @@ class TapLockTileService : TileService() {
             if (isAccessibilityEnabled(this)) {
                 // If instance is null but we think it's enabled, try starting it
                 // This might happen if the service was killed or hasn't bound yet
+                Toast.makeText(this, "Locking screen...", Toast.LENGTH_SHORT).show()
                 val accessibilityIntent = Intent(this, TapLockAccessibilityService::class.java)
                 accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
                 startService(accessibilityIntent)
@@ -55,14 +56,14 @@ class TapLockTileService : TileService() {
     private fun updateTileState() {
         qsTile?.let { tile ->
             val isEnabled = isAccessibilityEnabled(this)
-            
+
             // STATE_INACTIVE is the correct state for a button that performs an action but doesn't have an on/off state.
             // It will appear white/grey (depending on theme) but not "highlighted/accented" like an active toggle.
             tile.state = if (isEnabled) Tile.STATE_INACTIVE else Tile.STATE_UNAVAILABLE
-            
+
             tile.label = getString(R.string.tile_label)
             tile.icon = Icon.createWithResource(this, R.drawable.ic_lock_tile)
-            
+
             tile.updateTile()
         }
     }

@@ -6,8 +6,10 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
+import android.widget.Toast
 import java.io.File
 
 class TapLockWidgetProvider : AppWidgetProvider() {
@@ -78,9 +80,19 @@ class TapLockWidgetProvider : AppWidgetProvider() {
 
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastTapTime < timeout) {
-            val accessibilityIntent = Intent(context, TapLockAccessibilityService::class.java)
-            accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
-            context.startService(accessibilityIntent)
+            // Try direct call first
+            val service = TapLockAccessibilityService.instance
+            if (service != null) {
+                Log.d("TapLock", "Widget: Using direct instance - fast path")
+                service.lockScreen()
+            } else {
+                // Fallback if instance is null
+                Log.d("TapLock", "Widget: Instance null - using slow startService path")
+                Toast.makeText(context, "Locking screen...", Toast.LENGTH_SHORT).show()
+                val accessibilityIntent = Intent(context, TapLockAccessibilityService::class.java)
+                accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
+                context.startService(accessibilityIntent)
+            }
         }
         lastTapTime = currentTime
     }
