@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -113,6 +114,11 @@ fun TapLockScreen() {
         mutableStateOf(isAccessibilityEnabled(context))
     }
 
+    var isBatteryOptimized by remember {
+        val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        mutableStateOf(!pm.isIgnoringBatteryOptimizations(context.packageName))
+    }
+
     var timeoutValue by remember { mutableStateOf("") }
     var showIcon by remember { mutableStateOf(false) }
     var vibrateOnLock by remember { mutableStateOf(true) }
@@ -178,6 +184,8 @@ fun TapLockScreen() {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityEnabled = isAccessibilityEnabled(context)
+                val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -273,6 +281,41 @@ fun TapLockScreen() {
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    stringResource(R.string.battery_optimization_description),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        if (isBatteryOptimized) stringResource(R.string.battery_enabled)
+                        else stringResource(R.string.battery_disabled),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = {
+                            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        }
+                    ) {
+                        Text(
+                            if (isBatteryOptimized) stringResource(R.string.battery_disable)
+                            else stringResource(R.string.battery_enable)
+                        )
+                    }
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(

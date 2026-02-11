@@ -31,4 +31,9 @@
     <string name="accessibility_permission_required">Accessibility permission required</string>
     <string name="vibrate_on_lock">vibrate_on_lock</string>
     <string name="vibrate_on_lock_label">Vibrate on Lock</string>
+    <string name="battery_enabled">Currently enabled</string>
+    <string name="battery_optimization_description">If the widget stops working after a while, try disabling battery optimization for this app. This allows the accessibility service to run more reliably in the background.</string>
+    <string name="battery_disable">Disable</string>
+    <string name="battery_disabled">Currently disabled</string>
+    <string name="battery_enable">Enable</string>
 </resources>
