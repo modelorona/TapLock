@@ -100,6 +100,7 @@ fun TapLockScreen() {
     val doubleTapTimeoutKey = stringResource(R.string.double_tap_timeout)
     val timeoutUpdatedMsg = stringResource(R.string.timeout_updated)
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
+    val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
     val customIconUpdatedMsg = stringResource(R.string.custom_icon_updated)
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
 
@@ -114,11 +115,13 @@ fun TapLockScreen() {
 
     var timeoutValue by remember { mutableStateOf("") }
     var showIcon by remember { mutableStateOf(false) }
+    var vibrateOnLock by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
         timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toString()
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
+        vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -322,7 +325,27 @@ fun TapLockScreen() {
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.vibrate_on_lock_label))
+                    Switch(
+                        checked = vibrateOnLock,
+                        onCheckedChange = { isChecked ->
+                            vibrateOnLock = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit {
+                                    putBoolean(vibrateOnLockKey, isChecked)
+                                }
+                        }
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

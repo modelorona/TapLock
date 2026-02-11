@@ -29,4 +29,6 @@
     <string name="not_now">Not now</string>
     <string name="tile_label">Lock Now</string>
     <string name="accessibility_permission_required">Accessibility permission required</string>
+    <string name="vibrate_on_lock">vibrate_on_lock</string>
+    <string name="vibrate_on_lock_label">Vibrate on Lock</string>
 </resources>

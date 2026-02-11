@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh issue view:*)",
+      "Bash(.\\\\gradlew.bat assembleDebug:*)",
+      "WebSearch"
+    ]
+  }
+}

@@ -6,6 +6,13 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.os.Handler
+import android.os.Looper
+import android.media.AudioAttributes
+import android.os.Build
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
@@ -80,18 +87,43 @@ class TapLockWidgetProvider : AppWidgetProvider() {
 
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastTapTime < timeout) {
-            // Try direct call first
-            val service = TapLockAccessibilityService.instance
-            if (service != null) {
-                Log.d("TapLock", "Widget: Using direct instance - fast path")
-                service.lockScreen()
+            // Haptic feedback if enabled
+            val vibrateOnLock = prefs.getBoolean(context.getString(R.string.vibrate_on_lock), true)
+            if (vibrateOnLock) {
+                val vibrator = context.getSystemService(Vibrator::class.java)
+                val effect = VibrationEffect.createOneShot(50, 80)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val attrs = VibrationAttributes.Builder()
+                        .setUsage(VibrationAttributes.USAGE_ALARM)
+                        .build()
+                    vibrator.vibrate(effect, attrs)
+                } else {
+                    val attrs = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .build()
+                    vibrator.vibrate(effect, attrs)
+                }
+            }
+
+            // Delay lock slightly so the haptic feedback can complete
+            val lockRunnable = Runnable {
+                val service = TapLockAccessibilityService.instance
+                if (service != null) {
+                    Log.d("TapLock", "Widget: Using direct instance - fast path")
+                    service.lockScreen()
+                } else {
+                    Log.d("TapLock", "Widget: Instance null - using slow startService path")
+                    Toast.makeText(context, "Locking screen...", Toast.LENGTH_SHORT).show()
+                    val accessibilityIntent = Intent(context, TapLockAccessibilityService::class.java)
+                    accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
+                    context.startService(accessibilityIntent)
+                }
+            }
+
+            if (vibrateOnLock) {
+                Handler(Looper.getMainLooper()).postDelayed(lockRunnable, 100)
             } else {
-                // Fallback if instance is null
-                Log.d("TapLock", "Widget: Instance null - using slow startService path")
-                Toast.makeText(context, "Locking screen...", Toast.LENGTH_SHORT).show()
-                val accessibilityIntent = Intent(context, TapLockAccessibilityService::class.java)
-                accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
-                context.startService(accessibilityIntent)
+                lockRunnable.run()
             }
         }
         lastTapTime = currentTime

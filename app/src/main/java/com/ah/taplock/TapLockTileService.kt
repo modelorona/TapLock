@@ -1,9 +1,16 @@
 package com.ah.taplock
 
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.media.AudioAttributes
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -19,10 +26,32 @@ class TapLockTileService : TileService() {
     override fun onClick() {
         super.onClick()
 
+        val prefs = getSharedPreferences(getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
+        val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
+        if (vibrateOnLock) {
+            val vibrator = getSystemService(Vibrator::class.java)
+            val effect = VibrationEffect.createOneShot(50, 80)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val attrs = VibrationAttributes.Builder()
+                    .setUsage(VibrationAttributes.USAGE_ALARM)
+                    .build()
+                vibrator.vibrate(effect, attrs)
+            } else {
+                val attrs = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .build()
+                vibrator.vibrate(effect, attrs)
+            }
+        }
+
         // Try direct call first for speed
         val service = TapLockAccessibilityService.instance
         if (service != null) {
-            service.lockScreen()
+            if (vibrateOnLock) {
+                Handler(Looper.getMainLooper()).postDelayed({ service.lockScreen() }, 100)
+            } else {
+                service.lockScreen()
+            }
         } else {
             // Fallback checking if enabled
             if (isAccessibilityEnabled(this)) {
