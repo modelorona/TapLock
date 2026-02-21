@@ -3,7 +3,12 @@
     "allow": [
       "Bash(gh issue view:*)",
       "Bash(.\\\\gradlew.bat assembleDebug:*)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:plugins.gradle.org)",
+      "WebFetch(domain:mvnrepository.com)",
+      "WebFetch(domain:android.benigumo.com)",
+      "WebFetch(domain:nek12.dev)",
+      "WebFetch(domain:blog.jetbrains.com)"
     ]
   }
 }
