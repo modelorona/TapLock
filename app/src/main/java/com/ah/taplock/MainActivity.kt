@@ -102,6 +102,7 @@ fun TapLockScreen() {
     val timeoutUpdatedMsg = stringResource(R.string.timeout_updated)
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
+    val statusBarDoubleTapKey = stringResource(R.string.status_bar_double_tap)
     val customIconUpdatedMsg = stringResource(R.string.custom_icon_updated)
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
 
@@ -122,12 +123,14 @@ fun TapLockScreen() {
     var timeoutValue by remember { mutableStateOf("") }
     var showIcon by remember { mutableStateOf(false) }
     var vibrateOnLock by remember { mutableStateOf(true) }
+    var statusBarDoubleTap by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
         timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toString()
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
+        statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -449,6 +452,32 @@ fun TapLockScreen() {
                             Text(stringResource(R.string.reset_icon))
                         }
                     }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.status_bar_double_tap_label))
+                        Text(
+                            stringResource(R.string.status_bar_double_tap_description),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = statusBarDoubleTap,
+                        onCheckedChange = { isChecked ->
+                            statusBarDoubleTap = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit {
+                                    putBoolean(statusBarDoubleTapKey, isChecked)
+                                }
+                        }
+                    )
                 }
             }
         }

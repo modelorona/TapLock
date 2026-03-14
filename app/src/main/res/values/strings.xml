@@ -36,4 +36,7 @@
     <string name="battery_disable">Disable</string>
     <string name="battery_disabled">Currently disabled</string>
     <string name="battery_enable">Enable</string>
+    <string name="status_bar_double_tap">status_bar_double_tap</string>
+    <string name="status_bar_double_tap_label">Double-Tap Status Bar to Lock</string>
+    <string name="status_bar_double_tap_description">Place an invisible overlay on the status bar that locks the screen when double-tapped</string>
 </resources>
