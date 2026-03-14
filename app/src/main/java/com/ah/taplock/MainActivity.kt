@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -386,7 +387,8 @@ fun TapLockScreen() {
                                 .edit {
                                     putBoolean(vibrateOnLockKey, isChecked)
                                 }
-                        }
+                        },
+                        modifier = Modifier.testTag("switch_vibrate")
                     )
                 }
 
@@ -414,7 +416,8 @@ fun TapLockScreen() {
                                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
                             }
                             context.sendBroadcast(intent)
-                        }
+                        },
+                        modifier = Modifier.testTag("switch_show_icon")
                     )
                 }
 
@@ -476,7 +479,8 @@ fun TapLockScreen() {
                                 .edit {
                                     putBoolean(statusBarDoubleTapKey, isChecked)
                                 }
-                        }
+                        },
+                        modifier = Modifier.testTag("switch_status_bar")
                     )
                 }
             }

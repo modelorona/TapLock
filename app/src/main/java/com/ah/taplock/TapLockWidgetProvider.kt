@@ -23,7 +23,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
 
     companion object {
         private const val ACTION_WIDGET_TAP = "com.ah.taplock.widget.TAP"
-        private var lastTapTime = 0L
+        private val doubleTapDetector = DoubleTapDetector()
     }
 
     override fun onUpdate(
@@ -85,9 +85,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         val prefs = context.getSharedPreferences(context.getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
         val timeout = prefs.getInt(context.getString(R.string.double_tap_timeout), 300)
 
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastTapTime < timeout) {
-            // Haptic feedback if enabled
+        if (doubleTapDetector.onTap(timeout)) {
             val vibrateOnLock = prefs.getBoolean(context.getString(R.string.vibrate_on_lock), true)
             if (vibrateOnLock) {
                 val vibrator = context.getSystemService(Vibrator::class.java)
@@ -126,7 +124,6 @@ class TapLockWidgetProvider : AppWidgetProvider() {
                 lockRunnable.run()
             }
         }
-        lastTapTime = currentTime
     }
 
     private fun getPendingSelfIntent(context: Context, appWidgetId: Int): PendingIntent {

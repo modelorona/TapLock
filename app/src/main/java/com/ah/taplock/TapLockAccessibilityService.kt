@@ -29,7 +29,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     }
 
     private var statusBarOverlay: View? = null
-    private var lastTapTime = 0L
+    private val doubleTapDetector = DoubleTapDetector()
     private var prefListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     override fun onServiceConnected() {
@@ -143,20 +143,17 @@ class TapLockAccessibilityService : AccessibilityService() {
             wm.removeView(it)
         }
         statusBarOverlay = null
-        lastTapTime = 0L
+        doubleTapDetector.reset()
     }
 
     private fun handleStatusBarTouch(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_DOWN) {
             val prefs = getPrefs()
             val timeout = prefs.getInt(getString(R.string.double_tap_timeout), 300)
-            val currentTime = System.currentTimeMillis()
-            val elapsed = currentTime - lastTapTime
-            Log.d(TAG, "touch: ACTION_DOWN at y=${event.rawY}, elapsed=${elapsed}ms, timeout=${timeout}ms")
+            Log.d(TAG, "touch: ACTION_DOWN at y=${event.rawY}, timeout=${timeout}ms")
 
-            if (elapsed < timeout) {
+            if (doubleTapDetector.onTap(timeout)) {
                 Log.d(TAG, "touch: DOUBLE TAP detected, locking")
-                lastTapTime = 0L
 
                 val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
                 if (vibrateOnLock) {
@@ -181,7 +178,6 @@ class TapLockAccessibilityService : AccessibilityService() {
                 }
                 return true
             }
-            lastTapTime = currentTime
         }
         return false
     }
