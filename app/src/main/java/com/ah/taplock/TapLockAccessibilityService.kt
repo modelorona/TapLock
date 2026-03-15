@@ -106,14 +106,33 @@ class TapLockAccessibilityService : AccessibilityService() {
 
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
 
+        var downTimeMs = 0L
+        var downY = 0f
+        var swiped = false
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+
         val overlay = View(this).apply {
             setOnTouchListener { v, event ->
-                if (handleStatusBarTouch(event)) {
-                    v.performClick()
-                    true
-                } else {
-                    false
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downTimeMs = System.currentTimeMillis()
+                        downY = event.rawY
+                        swiped = false
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!swiped && event.rawY - downY > touchSlop) {
+                            swiped = true
+                            performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+                        }
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (!swiped) {
+                            handleStatusBarTap(downTimeMs)
+                        }
+                        v.performClick()
+                    }
                 }
+                true
             }
         }
 
@@ -146,40 +165,36 @@ class TapLockAccessibilityService : AccessibilityService() {
         doubleTapDetector.reset()
     }
 
-    private fun handleStatusBarTouch(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            val prefs = getPrefs()
-            val timeout = prefs.getInt(getString(R.string.double_tap_timeout), 300)
-            Log.d(TAG, "touch: ACTION_DOWN at y=${event.rawY}, timeout=${timeout}ms")
+    private fun handleStatusBarTap(tapTimeMs: Long) {
+        val prefs = getPrefs()
+        val timeout = prefs.getInt(getString(R.string.double_tap_timeout), 300)
+        Log.d(TAG, "touch: tap registered, timeout=${timeout}ms")
 
-            if (doubleTapDetector.onTap(timeout)) {
-                Log.d(TAG, "touch: DOUBLE TAP detected, locking")
+        if (doubleTapDetector.onTap(timeout, tapTimeMs)) {
+            Log.d(TAG, "touch: DOUBLE TAP detected, locking")
 
-                val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
-                if (vibrateOnLock) {
-                    val vibrator = getSystemService(Vibrator::class.java)
-                    val effect = VibrationEffect.createOneShot(50, 80)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        val attrs = VibrationAttributes.Builder()
-                            .setUsage(VibrationAttributes.USAGE_ALARM)
-                            .build()
-                        vibrator.vibrate(effect, attrs)
-                    } else {
-                        @Suppress("DEPRECATION")
-                        val attrs = AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ALARM)
-                            .build()
-                        @Suppress("DEPRECATION")
-                        vibrator.vibrate(effect, attrs)
-                    }
-                    Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, 100)
+            val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
+            if (vibrateOnLock) {
+                val vibrator = getSystemService(Vibrator::class.java)
+                val effect = VibrationEffect.createOneShot(50, 80)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val attrs = VibrationAttributes.Builder()
+                        .setUsage(VibrationAttributes.USAGE_ALARM)
+                        .build()
+                    vibrator.vibrate(effect, attrs)
                 } else {
-                    lockScreen()
+                    @Suppress("DEPRECATION")
+                    val attrs = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .build()
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(effect, attrs)
                 }
-                return true
+                Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, 100)
+            } else {
+                lockScreen()
             }
         }
-        return false
     }
 
     private fun getStatusBarHeight(): Int {

@@ -5,8 +5,8 @@ class DoubleTapDetector(
 ) {
     private var lastTapTime = 0L
 
-    fun onTap(timeoutMs: Int): Boolean {
-        val currentTime = currentTimeMs()
+    fun onTap(timeoutMs: Int, tapTimeMs: Long = currentTimeMs()): Boolean {
+        val currentTime = tapTimeMs
         if (lastTapTime != 0L && currentTime - lastTapTime < timeoutMs) {
             lastTapTime = 0L
             return true

@@ -9,7 +9,15 @@
       "WebFetch(domain:android.benigumo.com)",
       "WebFetch(domain:nek12.dev)",
       "WebFetch(domain:blog.jetbrains.com)",
-      "Bash(cd \"C:\\\\Users\\\\ah\\\\StudioProjects\\\\TapLock\" && ./gradlew assembleDebug 2>&1 | tail -20)"
+      "Bash(cd \"C:\\\\Users\\\\ah\\\\StudioProjects\\\\TapLock\" && ./gradlew assembleDebug 2>&1 | tail -20)",
+      "Bash(./gradlew assembleDebug 2>&1 | tail -20)",
+      "Read(//c/Program Files/Android/Android Studio/jbr/**)",
+      "Read(//c/Program Files/Android/**)",
+      "Bash(where java:*)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug 2>&1 | tail -20)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug 2>&1 | tail -5)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew testDebugUnitTest 2>&1 | tail -10)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug testDebugUnitTest 2>&1 | tail -5)"
     ]
   }
 }
