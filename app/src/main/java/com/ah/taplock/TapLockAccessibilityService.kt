@@ -2,6 +2,7 @@ package com.ah.taplock
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -20,6 +21,7 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.util.Log
 
@@ -34,6 +36,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     private var statusBarOverlay: View? = null
     private val doubleTapDetector = DoubleTapDetector()
     private var prefListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
+    private var isOnLockScreen = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -43,7 +46,7 @@ class TapLockAccessibilityService : AccessibilityService() {
             info.eventTypes = info.eventTypes or AccessibilityEvent.TYPE_WINDOWS_CHANGED
             serviceInfo = info
         }
-        updateStatusBarOverlay()
+        updateOverlay()
         registerPrefListener()
     }
 
@@ -75,6 +78,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             updateOverlayTouchability()
+            updateOverlayForLockScreen()
         }
     }
 
@@ -87,8 +91,9 @@ class TapLockAccessibilityService : AccessibilityService() {
     private fun registerPrefListener() {
         val prefs = getPrefs()
         prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == getString(R.string.status_bar_double_tap)) {
-                updateStatusBarOverlay()
+            when (key) {
+                getString(R.string.status_bar_double_tap),
+                getString(R.string.lock_screen_double_tap) -> updateOverlay()
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
@@ -101,13 +106,22 @@ class TapLockAccessibilityService : AccessibilityService() {
         prefListener = null
     }
 
-    private fun updateStatusBarOverlay() {
-        val enabled = getPrefs().getBoolean(getString(R.string.status_bar_double_tap), false)
-        Log.d(TAG, "updateStatusBarOverlay: enabled=$enabled")
-        if (enabled && statusBarOverlay == null) {
+    private fun updateOverlay() {
+        val prefs = getPrefs()
+        val statusBarEnabled = prefs.getBoolean(getString(R.string.status_bar_double_tap), false)
+        val lockScreenEnabled = prefs.getBoolean(getString(R.string.lock_screen_double_tap), false)
+        val needsOverlay = statusBarEnabled || lockScreenEnabled
+        Log.d(TAG, "updateOverlay: statusBar=$statusBarEnabled, lockScreen=$lockScreenEnabled")
+
+        if (needsOverlay && statusBarOverlay == null) {
             addStatusBarOverlay()
-        } else if (!enabled && statusBarOverlay != null) {
+        } else if (!needsOverlay && statusBarOverlay != null) {
             removeStatusBarOverlay()
+        }
+
+        // Update size if overlay exists
+        if (statusBarOverlay != null) {
+            updateOverlayForLockScreen()
         }
     }
 
@@ -120,6 +134,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
 
         var downTimeMs = 0L
+        var downX = 0f
         var downY = 0f
         var swiped = false
         val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
@@ -129,18 +144,28 @@ class TapLockAccessibilityService : AccessibilityService() {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
                         downTimeMs = System.currentTimeMillis()
+                        downX = event.rawX
                         downY = event.rawY
                         swiped = false
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        if (!swiped && event.rawY - downY > touchSlop) {
-                            swiped = true
-                            performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+                        if (!swiped) {
+                            val dy = event.rawY - downY
+                            if (isOnLockScreen && dy < -touchSlop) {
+                                // Swipe up on lock screen — dismiss keyguard
+                                swiped = true
+                                performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE)
+                            } else if (!isOnLockScreen && dy > touchSlop) {
+                                swiped = true
+                                performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+                            }
                         }
                     }
                     MotionEvent.ACTION_UP -> {
                         if (!swiped) {
-                            if (isStatusBarVisible()) {
+                            if (isOnLockScreen) {
+                                handleLockScreenTap(downTimeMs, downX, downY)
+                            } else if (isStatusBarVisible()) {
                                 handleStatusBarTap(downTimeMs)
                             } else {
                                 doubleTapDetector.reset()
@@ -175,12 +200,24 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun updateOverlayTouchability() {
         val overlay = statusBarOverlay ?: return
-        val fullscreen = !isStatusBarVisible()
+        val prefs = getPrefs()
+        val statusBarEnabled = prefs.getBoolean(getString(R.string.status_bar_double_tap), false)
+        val lockScreenEnabled = prefs.getBoolean(getString(R.string.lock_screen_double_tap), false)
+
+        // Disable touch when: in a fullscreen app (no status bar) and not on lock screen,
+        // or when only lock screen feature is enabled and we're not on the lock screen
+        val shouldDisableTouch = when {
+            isOnLockScreen && lockScreenEnabled -> false
+            !isStatusBarVisible() -> true
+            statusBarEnabled -> false
+            else -> true // lock screen only, but not on lock screen
+        }
+
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val params = overlay.layoutParams as WindowManager.LayoutParams
         val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-        val newFlags = if (fullscreen) {
+        val newFlags = if (shouldDisableTouch) {
             baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         } else {
             baseFlags
@@ -188,9 +225,114 @@ class TapLockAccessibilityService : AccessibilityService() {
         if (params.flags != newFlags) {
             params.flags = newFlags
             wm.updateViewLayout(overlay, params)
-            if (fullscreen) doubleTapDetector.reset()
-            Log.d(TAG, "overlay: fullscreen=$fullscreen")
+            if (shouldDisableTouch) doubleTapDetector.reset()
+            Log.d(TAG, "overlay: touchDisabled=$shouldDisableTouch, lockScreen=$isOnLockScreen")
         }
+    }
+
+    private fun updateOverlayForLockScreen() {
+        val overlay = statusBarOverlay ?: return
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        val locked = km.isKeyguardLocked
+        val wasOnLockScreen = isOnLockScreen
+        isOnLockScreen = locked
+
+        val prefs = getPrefs()
+        val lockScreenEnabled = prefs.getBoolean(
+            getString(R.string.lock_screen_double_tap), false
+        )
+        val statusBarEnabled = prefs.getBoolean(
+            getString(R.string.status_bar_double_tap), false
+        )
+
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val params = overlay.layoutParams as WindowManager.LayoutParams
+        val newHeight = if (locked && lockScreenEnabled) {
+            getLockScreenOverlayHeight()
+        } else if (statusBarEnabled) {
+            getStatusBarHeight()
+        } else {
+            // Only lock screen feature enabled, not on lock screen — keep minimal
+            getStatusBarHeight()
+        }
+
+        if (params.height != newHeight) {
+            params.height = newHeight
+            wm.updateViewLayout(overlay, params)
+            doubleTapDetector.reset()
+            Log.d(TAG, "overlay: lockScreen=$locked, height=${newHeight}px")
+        }
+
+        if (locked != wasOnLockScreen) {
+            updateOverlayTouchability()
+        }
+    }
+
+    private fun getLockScreenOverlayHeight(): Int {
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val screenHeight = wm.currentWindowMetrics.bounds.height()
+        // Leave bottom third uncovered for on-screen fingerprint sensors
+        return (screenHeight * 2) / 3
+    }
+
+    private fun handleLockScreenTap(tapTimeMs: Long, x: Float, y: Float) {
+        val clickedNode = findClickableNodeAt(x.toInt(), y.toInt())
+        if (clickedNode != null) {
+            Log.d(TAG, "lock screen tap: forwarding click to interactive element")
+            clickedNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            clickedNode.recycle()
+            doubleTapDetector.reset()
+            return
+        }
+        // Empty space — count toward double-tap
+        handleStatusBarTap(tapTimeMs)
+    }
+
+    private fun findClickableNodeAt(x: Int, y: Int): AccessibilityNodeInfo? {
+        val nodeRect = Rect()
+        for (window in windows) {
+            // Skip our own overlay
+            if (window.type == AccessibilityWindowInfo.TYPE_ACCESSIBILITY_OVERLAY) continue
+            val windowRect = Rect()
+            window.getBoundsInScreen(windowRect)
+            if (!windowRect.contains(x, y)) continue
+
+            val root = window.root ?: continue
+            val result = findDeepestClickableNode(root, x, y, nodeRect)
+            if (result != null) {
+                root.recycle()
+                return result
+            }
+            root.recycle()
+        }
+        return null
+    }
+
+    private fun findDeepestClickableNode(
+        node: AccessibilityNodeInfo,
+        x: Int,
+        y: Int,
+        rect: Rect
+    ): AccessibilityNodeInfo? {
+        node.getBoundsInScreen(rect)
+        if (!rect.contains(x, y)) return null
+
+        // Check children first (deeper = more specific)
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val result = findDeepestClickableNode(child, x, y, rect)
+            if (result != null) {
+                child.recycle()
+                return result
+            }
+            child.recycle()
+        }
+
+        // This node contains the point — is it clickable?
+        if (node.isClickable) {
+            return AccessibilityNodeInfo.obtain(node)
+        }
+        return null
     }
 
     private fun isStatusBarVisible(): Boolean {

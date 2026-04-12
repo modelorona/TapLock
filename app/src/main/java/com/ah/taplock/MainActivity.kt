@@ -105,6 +105,7 @@ fun TapLockScreen() {
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
     val statusBarDoubleTapKey = stringResource(R.string.status_bar_double_tap)
+    val lockScreenDoubleTapKey = stringResource(R.string.lock_screen_double_tap)
     val customIconUpdatedMsg = stringResource(R.string.custom_icon_updated)
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
 
@@ -126,6 +127,7 @@ fun TapLockScreen() {
     var showIcon by remember { mutableStateOf(false) }
     var vibrateOnLock by remember { mutableStateOf(true) }
     var statusBarDoubleTap by remember { mutableStateOf(false) }
+    var lockScreenDoubleTap by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -133,6 +135,7 @@ fun TapLockScreen() {
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
+        lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -485,8 +488,36 @@ fun TapLockScreen() {
                         modifier = Modifier.testTag("switch_status_bar")
                     )
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.lock_screen_double_tap_label))
+                            Text(
+                                stringResource(R.string.lock_screen_double_tap_description),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Switch(
+                            checked = lockScreenDoubleTap,
+                            onCheckedChange = { isChecked ->
+                                lockScreenDoubleTap = isChecked
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putBoolean(lockScreenDoubleTapKey, isChecked)
+                                    }
+                            },
+                            modifier = Modifier.testTag("switch_lock_screen")
+                        )
+                    }
+                }
             }
-        }
+
 
         if (showDialog) {
             AlertDialog(

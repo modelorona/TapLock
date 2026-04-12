@@ -39,4 +39,7 @@
     <string name="status_bar_double_tap">status_bar_double_tap</string>
     <string name="status_bar_double_tap_label">Double-Tap Status Bar to Lock</string>
     <string name="status_bar_double_tap_description">Double tap on the status bar to lock the screen.</string>
+    <string name="lock_screen_double_tap">lock_screen_double_tap</string>
+    <string name="lock_screen_double_tap_label">Double-Tap Lock Screen to Lock</string>
+    <string name="lock_screen_double_tap_description">When the screen is locked, double-tap on the top two-thirds of the screen to lock.</string>
 </resources>
