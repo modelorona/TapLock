@@ -1,10 +1,12 @@
 package com.ah.taplock
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.media.AudioAttributes
 import android.os.Build
 import android.os.Handler
@@ -18,6 +20,7 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import android.util.Log
 
 class TapLockAccessibilityService : AccessibilityService() {
@@ -35,6 +38,11 @@ class TapLockAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        serviceInfo?.let { info ->
+            info.flags = info.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            info.eventTypes = info.eventTypes or AccessibilityEvent.TYPE_WINDOWS_CHANGED
+            serviceInfo = info
+        }
         updateStatusBarOverlay()
         registerPrefListener()
     }
@@ -64,7 +72,12 @@ class TapLockAccessibilityService : AccessibilityService() {
         performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            updateOverlayTouchability()
+        }
+    }
+
     override fun onInterrupt() {}
 
     private fun getPrefs(): SharedPreferences {
@@ -91,9 +104,9 @@ class TapLockAccessibilityService : AccessibilityService() {
     private fun updateStatusBarOverlay() {
         val enabled = getPrefs().getBoolean(getString(R.string.status_bar_double_tap), false)
         Log.d(TAG, "updateStatusBarOverlay: enabled=$enabled")
-        if (enabled) {
+        if (enabled && statusBarOverlay == null) {
             addStatusBarOverlay()
-        } else {
+        } else if (!enabled && statusBarOverlay != null) {
             removeStatusBarOverlay()
         }
     }
@@ -127,7 +140,11 @@ class TapLockAccessibilityService : AccessibilityService() {
                     }
                     MotionEvent.ACTION_UP -> {
                         if (!swiped) {
-                            handleStatusBarTap(downTimeMs)
+                            if (isStatusBarVisible()) {
+                                handleStatusBarTap(downTimeMs)
+                            } else {
+                                doubleTapDetector.reset()
+                            }
                         }
                         v.performClick()
                     }
@@ -154,6 +171,38 @@ class TapLockAccessibilityService : AccessibilityService() {
         wm.addView(overlay, params)
         statusBarOverlay = overlay
         Log.d(TAG, "addStatusBarOverlay: added, height=${statusBarHeight}px")
+    }
+
+    private fun updateOverlayTouchability() {
+        val overlay = statusBarOverlay ?: return
+        val fullscreen = !isStatusBarVisible()
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val params = overlay.layoutParams as WindowManager.LayoutParams
+        val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        val newFlags = if (fullscreen) {
+            baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        } else {
+            baseFlags
+        }
+        if (params.flags != newFlags) {
+            params.flags = newFlags
+            wm.updateViewLayout(overlay, params)
+            if (fullscreen) doubleTapDetector.reset()
+            Log.d(TAG, "overlay: fullscreen=$fullscreen")
+        }
+    }
+
+    private fun isStatusBarVisible(): Boolean {
+        val allWindows = windows
+        if (allWindows.isEmpty()) return true
+        val rect = Rect()
+        return allWindows.any { window ->
+            window.type == AccessibilityWindowInfo.TYPE_SYSTEM &&
+                rect.also { window.getBoundsInScreen(it) }.let {
+                    it.top == 0 && it.height() > 0
+                }
+        }
     }
 
     private fun removeStatusBarOverlay() {

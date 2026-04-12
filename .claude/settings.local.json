@@ -17,7 +17,8 @@
       "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug 2>&1 | tail -20)",
       "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug 2>&1 | tail -5)",
       "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew testDebugUnitTest 2>&1 | tail -10)",
-      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug testDebugUnitTest 2>&1 | tail -5)"
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug testDebugUnitTest 2>&1 | tail -5)",
+      "Bash(./gradlew assembleDebug)"
     ]
   }
 }
