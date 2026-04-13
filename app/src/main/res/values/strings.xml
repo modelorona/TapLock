@@ -51,4 +51,7 @@
     <string name="battery_status_unrestricted">Unrestricted (recommended)</string>
     <string name="battery_action_fix">Fix</string>
     <string name="battery_action_restrict">Restrict</string>
+
+    <string name="slider_timeout_label">Double Tap Timeout: %dms</string>
+    <string name="accessibility_required_hint">Enable accessibility service to use these features</string>
 </resources>

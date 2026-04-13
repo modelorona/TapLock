@@ -27,24 +27,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -57,18 +57,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
@@ -104,7 +100,6 @@ fun TapLockScreen() {
     val githubUrl = stringResource(R.string.github_url)
     val sharedPrefName = stringResource(R.string.shared_pref_name)
     val doubleTapTimeoutKey = stringResource(R.string.double_tap_timeout)
-    val timeoutUpdatedMsg = stringResource(R.string.timeout_updated)
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
     val statusBarDoubleTapKey = stringResource(R.string.status_bar_double_tap)
@@ -113,9 +108,6 @@ fun TapLockScreen() {
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
     val hasSeenInfoKey = stringResource(R.string.has_seen_info)
 
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusRequester = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
     var showDialog by remember { mutableStateOf(false) }
 
     var isAccessibilityEnabled by remember {
@@ -127,7 +119,7 @@ fun TapLockScreen() {
         mutableStateOf(!pm.isIgnoringBatteryOptimizations(context.packageName))
     }
 
-    var timeoutValue by remember { mutableStateOf("") }
+    var timeoutValue by remember { mutableStateOf(300f) }
     var showIcon by remember { mutableStateOf(false) }
     var vibrateOnLock by remember { mutableStateOf(true) }
     var statusBarDoubleTap by remember { mutableStateOf(false) }
@@ -136,7 +128,7 @@ fun TapLockScreen() {
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-        timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toString()
+        timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toFloat()
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
@@ -250,6 +242,21 @@ fun TapLockScreen() {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (isAccessibilityEnabled) {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFFFA000),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Text(stringResource(R.string.accessibility_service), modifier = Modifier.weight(1f))
                         Button(
                             onClick = { showDialog = true },
@@ -277,6 +284,21 @@ fun TapLockScreen() {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (isBatteryOptimized) {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFFFA000),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         Text(
                             if (isBatteryOptimized) stringResource(R.string.battery_status_restricting)
                             else stringResource(R.string.battery_status_unrestricted),
@@ -308,49 +330,31 @@ fun TapLockScreen() {
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextField(
-                            label = { Text(stringResource(R.string.timeout_label)) },
-                            value = timeoutValue,
-                            onValueChange = { newValue: String ->
-                                timeoutValue = newValue
-                            },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester),
-                            trailingIcon = {
-                                if (timeoutValue.isNotEmpty()) {
-                                    IconButton(onClick = { timeoutValue = "" }) {
-                                        Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_value))
-                                    }
-                                }
-                            },
+                    if (!isAccessibilityEnabled) {
+                        Text(
+                            stringResource(R.string.accessibility_required_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFFFA000)
                         )
-
-                        Button(
-                            enabled = timeoutValue.isNotEmpty(),
-                            onClick = {
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit {
-                                        putInt(
-                                            doubleTapTimeoutKey,
-                                            timeoutValue.toInt()
-                                        )
-                                    }
-                                Toast.makeText(context, timeoutUpdatedMsg, Toast.LENGTH_SHORT).show()
-                                keyboardController?.hide()
-                                focusManager.clearFocus()
-                            }
-                        ) {
-                            Text(stringResource(R.string.update))
-                        }
                     }
+
+                    Text(
+                        stringResource(R.string.slider_timeout_label, timeoutValue.toInt()),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Slider(
+                        value = timeoutValue,
+                        onValueChange = { timeoutValue = it },
+                        onValueChangeFinished = {
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit {
+                                    putInt(doubleTapTimeoutKey, timeoutValue.toInt())
+                                }
+                        },
+                        valueRange = 100f..800f,
+                        steps = 13,
+                        modifier = Modifier.testTag("slider_timeout")
+                    )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -397,6 +401,7 @@ fun TapLockScreen() {
                                 }
                                 context.sendBroadcast(intent)
                             },
+                            enabled = isAccessibilityEnabled,
                             modifier = Modifier.testTag("switch_show_icon")
                         )
                     }
@@ -459,6 +464,7 @@ fun TapLockScreen() {
                                         putBoolean(statusBarDoubleTapKey, isChecked)
                                     }
                             },
+                            enabled = isAccessibilityEnabled,
                             modifier = Modifier.testTag("switch_status_bar")
                         )
                     }
@@ -486,6 +492,7 @@ fun TapLockScreen() {
                                         putBoolean(lockScreenDoubleTapKey, isChecked)
                                     }
                             },
+                            enabled = isAccessibilityEnabled,
                             modifier = Modifier.testTag("switch_lock_screen")
                         )
                     }
