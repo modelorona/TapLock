@@ -19,29 +19,40 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -51,6 +62,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -59,6 +71,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -127,6 +142,10 @@ fun TapLockScreen() {
     var statusBarDoubleTap by remember { mutableStateOf(false) }
     var lockScreenDoubleTap by remember { mutableStateOf(false) }
     var infoExpanded by remember { mutableStateOf(true) }
+    var showOnboarding by remember { mutableStateOf(false) }
+    var onboardingStep by remember { mutableIntStateOf(0) }
+    var lockDelayMs by remember { mutableIntStateOf(0) }
+    var lockCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -137,6 +156,9 @@ fun TapLockScreen() {
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
         lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
         infoExpanded = !prefs.getBoolean(hasSeenInfoKey, false)
+        showOnboarding = !prefs.getBoolean(context.getString(R.string.has_completed_onboarding), false)
+        lockDelayMs = prefs.getInt(context.getString(R.string.lock_delay_ms), 0)
+        lockCount = prefs.getInt(context.getString(R.string.lock_count), 0)
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -191,6 +213,8 @@ fun TapLockScreen() {
                 isAccessibilityEnabled = isAccessibilityEnabled(context)
                 val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
+                val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                lockCount = prefs.getInt(context.getString(R.string.lock_count), 0)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -538,6 +562,75 @@ fun TapLockScreen() {
                             modifier = Modifier.testTag("switch_lock_screen")
                         )
                     }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Lock delay dropdown
+                    val lockDelayKey = stringResource(R.string.lock_delay_ms)
+                    val delayOptions = listOf(
+                        0 to stringResource(R.string.lock_delay_none),
+                        500 to stringResource(R.string.lock_delay_half),
+                        1000 to stringResource(R.string.lock_delay_one),
+                        2000 to stringResource(R.string.lock_delay_two)
+                    )
+                    var delayDropdownExpanded by remember { mutableStateOf(false) }
+                    val selectedDelayLabel = delayOptions.first { it.first == lockDelayMs }.second
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.lock_delay_label),
+                            modifier = Modifier.weight(1f)
+                        )
+                        ExposedDropdownMenuBox(
+                            expanded = delayDropdownExpanded,
+                            onExpandedChange = { delayDropdownExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedDelayLabel,
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = delayDropdownExpanded) },
+                                modifier = Modifier
+                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                    .size(width = 120.dp, height = 52.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium
+                            )
+                            ExposedDropdownMenu(
+                                expanded = delayDropdownExpanded,
+                                onDismissRequest = { delayDropdownExpanded = false }
+                            ) {
+                                delayOptions.forEach { (ms, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            lockDelayMs = ms
+                                            delayDropdownExpanded = false
+                                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                                .edit { putInt(lockDelayKey, ms) }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Tap-to-test area
+                    DoubleTapTestArea(timeoutMs = timeoutValue.toInt())
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    // Lock counter
+                    Text(
+                        stringResource(R.string.lock_count_label, lockCount),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -562,6 +655,63 @@ fun TapLockScreen() {
                         onClick = { showDialog = false }
                     ) {
                         Text(stringResource(R.string.not_now))
+                    }
+                }
+            )
+        }
+
+        if (showOnboarding) {
+            val onboardingTitle = when (onboardingStep) {
+                0 -> stringResource(R.string.onboarding_welcome_title)
+                1 -> stringResource(R.string.onboarding_accessibility_title)
+                2 -> stringResource(R.string.onboarding_widget_title)
+                else -> stringResource(R.string.onboarding_done_title)
+            }
+            val onboardingBody = when (onboardingStep) {
+                0 -> stringResource(R.string.onboarding_welcome_body)
+                1 -> stringResource(R.string.onboarding_accessibility_body)
+                2 -> stringResource(R.string.onboarding_widget_body)
+                else -> stringResource(R.string.onboarding_done_body)
+            }
+
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(onboardingTitle) },
+                text = { Text(onboardingBody) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            when (onboardingStep) {
+                                1 -> context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                3 -> {
+                                    showOnboarding = false
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putBoolean(context.getString(R.string.has_completed_onboarding), true) }
+                                }
+                            }
+                            if (onboardingStep < 3) onboardingStep++
+                        }
+                    ) {
+                        Text(
+                            when (onboardingStep) {
+                                1 -> stringResource(R.string.onboarding_open_settings)
+                                3 -> stringResource(R.string.onboarding_done)
+                                else -> stringResource(R.string.onboarding_next)
+                            }
+                        )
+                    }
+                },
+                dismissButton = {
+                    if (onboardingStep < 3) {
+                        TextButton(
+                            onClick = {
+                                showOnboarding = false
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit { putBoolean(context.getString(R.string.has_completed_onboarding), true) }
+                            }
+                        ) {
+                            Text(stringResource(R.string.onboarding_skip))
+                        }
                     }
                 }
             )
@@ -625,6 +775,64 @@ fun InfoSection(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun DoubleTapTestArea(timeoutMs: Int) {
+    val detector = remember { DoubleTapDetector() }
+    var showSuccess by remember { mutableStateOf(false) }
+    val borderColor = if (showSuccess) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outline
+
+    LaunchedEffect(showSuccess) {
+        if (showSuccess) {
+            kotlinx.coroutines.delay(1000)
+            showSuccess = false
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .border(
+                width = 2.dp,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .pointerInput(timeoutMs) {
+                detectTapGestures {
+                    if (detector.onTap(timeoutMs)) {
+                        showSuccess = true
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        if (showSuccess) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = Color(0xFF4CAF50),
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    stringResource(R.string.tap_test_success),
+                    color = Color(0xFF4CAF50),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        } else {
+            Text(
+                stringResource(R.string.tap_test_label),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

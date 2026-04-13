@@ -67,6 +67,9 @@ class TapLockAccessibilityService : AccessibilityService() {
     }
 
     fun lockScreen() {
+        val prefs = getPrefs()
+        val count = prefs.getInt(getString(R.string.lock_count), 0)
+        prefs.edit().putInt(getString(R.string.lock_count), count + 1).apply()
         performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
     }
 
@@ -355,9 +358,12 @@ class TapLockAccessibilityService : AccessibilityService() {
             Log.d(TAG, "touch: DOUBLE TAP detected, locking")
 
             val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
+            val lockDelay = prefs.getInt(getString(R.string.lock_delay_ms), 0).toLong()
             if (vibrateOnLock) {
                 VibrationHelper.vibrate(this, VibrationHelper.fromPrefs(this))
-                Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, 100)
+                Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, 100 + lockDelay)
+            } else if (lockDelay > 0) {
+                Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, lockDelay)
             } else {
                 lockScreen()
             }

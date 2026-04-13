@@ -24,15 +24,16 @@ class TapLockTileService : TileService() {
 
         val prefs = getSharedPreferences(getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
         val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
+        val lockDelay = prefs.getInt(getString(R.string.lock_delay_ms), 0).toLong()
         if (vibrateOnLock) {
             VibrationHelper.vibrate(this, VibrationHelper.fromPrefs(this))
         }
 
-        // Try direct call first for speed
         val service = TapLockAccessibilityService.instance
         if (service != null) {
-            if (vibrateOnLock) {
-                Handler(Looper.getMainLooper()).postDelayed({ service.lockScreen() }, 100)
+            val totalDelay = (if (vibrateOnLock) 100L else 0L) + lockDelay
+            if (totalDelay > 0) {
+                Handler(Looper.getMainLooper()).postDelayed({ service.lockScreen() }, totalDelay)
             } else {
                 service.lockScreen()
             }

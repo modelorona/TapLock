@@ -58,4 +58,31 @@
     <string name="vibration_medium">Medium</string>
     <string name="vibration_strong">Strong</string>
     <string name="accessibility_required_hint">Enable accessibility service to use these features</string>
+
+    <string name="has_completed_onboarding">has_completed_onboarding</string>
+    <string name="onboarding_welcome_title">Welcome to TapLock</string>
+    <string name="onboarding_welcome_body">Lock your screen instantly with a double-tap. Let\'s get you set up in a few quick steps.</string>
+    <string name="onboarding_accessibility_title">Enable Accessibility</string>
+    <string name="onboarding_accessibility_body">TapLock needs the accessibility service to detect double-taps and lock your screen. No other data is collected.</string>
+    <string name="onboarding_widget_title">Add the Widget</string>
+    <string name="onboarding_widget_body">Go to your home screen, long-press on empty space, and add the TapLock widget. Double-tap it to lock!</string>
+    <string name="onboarding_done_title">You\'re All Set!</string>
+    <string name="onboarding_done_body">TapLock is ready to use. You can customise settings any time from this screen.</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_open_settings">Open Settings</string>
+    <string name="onboarding_done">Done</string>
+    <string name="onboarding_skip">Skip</string>
+
+    <string name="lock_delay_ms">lock_delay_ms</string>
+    <string name="lock_delay_label">Lock Delay</string>
+    <string name="lock_delay_none">None</string>
+    <string name="lock_delay_half">0.5s</string>
+    <string name="lock_delay_one">1s</string>
+    <string name="lock_delay_two">2s</string>
+
+    <string name="lock_count">lock_count</string>
+    <string name="lock_count_label">Locked %d times with TapLock</string>
+
+    <string name="tap_test_label">Tap here to test</string>
+    <string name="tap_test_success">Double-tap detected!</string>
 </resources>

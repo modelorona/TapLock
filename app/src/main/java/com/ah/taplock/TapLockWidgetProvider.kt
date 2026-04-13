@@ -82,11 +82,11 @@ class TapLockWidgetProvider : AppWidgetProvider() {
 
         if (doubleTapDetector.onTap(timeout)) {
             val vibrateOnLock = prefs.getBoolean(context.getString(R.string.vibrate_on_lock), true)
+            val lockDelay = prefs.getInt(context.getString(R.string.lock_delay_ms), 0).toLong()
             if (vibrateOnLock) {
                 VibrationHelper.vibrate(context, VibrationHelper.fromPrefs(context))
             }
 
-            // Delay lock slightly so the haptic feedback can complete
             val lockRunnable = Runnable {
                 val service = TapLockAccessibilityService.instance
                 if (service != null) {
@@ -101,8 +101,9 @@ class TapLockWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            if (vibrateOnLock) {
-                Handler(Looper.getMainLooper()).postDelayed(lockRunnable, 100)
+            val totalDelay = (if (vibrateOnLock) 100L else 0L) + lockDelay
+            if (totalDelay > 0) {
+                Handler(Looper.getMainLooper()).postDelayed(lockRunnable, totalDelay)
             } else {
                 lockRunnable.run()
             }
