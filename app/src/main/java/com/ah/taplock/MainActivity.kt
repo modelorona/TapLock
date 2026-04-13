@@ -63,6 +63,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +81,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -97,6 +99,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 
 class MainActivity : ComponentActivity() {
@@ -132,6 +135,10 @@ fun TapLockScreen() {
     val customIconUpdatedMsg = stringResource(R.string.custom_icon_updated)
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
     val hasSeenInfoKey = stringResource(R.string.has_seen_info)
+    val hasCompletedOnboardingKey = stringResource(R.string.has_completed_onboarding)
+    val lockDelayMsKey = stringResource(R.string.lock_delay_ms)
+    val lockCountKey = stringResource(R.string.lock_count)
+    val lockZonePercentKey = stringResource(R.string.lock_zone_percent)
 
     var showDialog by remember { mutableStateOf(false) }
 
@@ -144,7 +151,7 @@ fun TapLockScreen() {
         mutableStateOf(!pm.isIgnoringBatteryOptimizations(context.packageName))
     }
 
-    var timeoutValue by remember { mutableStateOf(300f) }
+    var timeoutValue by remember { mutableFloatStateOf(300f) }
     var showIcon by remember { mutableStateOf(false) }
     var vibrateOnLock by remember { mutableStateOf(true) }
     var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
@@ -155,7 +162,7 @@ fun TapLockScreen() {
     var onboardingStep by remember { mutableIntStateOf(0) }
     var lockDelayMs by remember { mutableIntStateOf(0) }
     var lockCount by remember { mutableIntStateOf(0) }
-    var lockZonePercent by remember { mutableStateOf(66f) }
+    var lockZonePercent by remember { mutableFloatStateOf(66f) }
     var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
     LaunchedEffect(Unit) {
@@ -167,10 +174,10 @@ fun TapLockScreen() {
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
         lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
         infoExpanded = !prefs.getBoolean(hasSeenInfoKey, false)
-        showOnboarding = !prefs.getBoolean(context.getString(R.string.has_completed_onboarding), false)
-        lockDelayMs = prefs.getInt(context.getString(R.string.lock_delay_ms), 0)
-        lockCount = prefs.getInt(context.getString(R.string.lock_count), 0)
-        lockZonePercent = prefs.getInt(context.getString(R.string.lock_zone_percent), 66).toFloat()
+        showOnboarding = !prefs.getBoolean(hasCompletedOnboardingKey, false)
+        lockDelayMs = prefs.getInt(lockDelayMsKey, 0)
+        lockCount = prefs.getInt(lockCountKey, 0)
+        lockZonePercent = prefs.getInt(lockZonePercentKey, 66).toFloat()
         // Load custom icon for preview
         val iconFile = File(context.filesDir, "custom_widget_icon.png")
         widgetIconBitmap = if (iconFile.exists()) {
@@ -233,7 +240,7 @@ fun TapLockScreen() {
                 val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                lockCount = prefs.getInt(context.getString(R.string.lock_count), 0)
+                lockCount = prefs.getInt(lockCountKey, 0)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -525,10 +532,9 @@ fun TapLockScreen() {
                             )
                             val previewBitmap = widgetIconBitmap ?: remember {
                                 val drawable = context.packageManager.getApplicationIcon(context.packageName)
-                                val bmp = Bitmap.createBitmap(
+                                val bmp = createBitmap(
                                     drawable.intrinsicWidth,
-                                    drawable.intrinsicHeight,
-                                    Bitmap.Config.ARGB_8888
+                                    drawable.intrinsicHeight
                                 )
                                 val canvas = android.graphics.Canvas(bmp)
                                 drawable.setBounds(0, 0, canvas.width, canvas.height)
@@ -717,7 +723,7 @@ fun TapLockScreen() {
 
                     // Lock counter
                     Text(
-                        stringResource(R.string.lock_count_label, lockCount),
+                        pluralStringResource(R.plurals.lock_count_label, lockCount, lockCount),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -776,7 +782,7 @@ fun TapLockScreen() {
                                 3 -> {
                                     showOnboarding = false
                                     context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                        .edit { putBoolean(context.getString(R.string.has_completed_onboarding), true) }
+                                        .edit { putBoolean(hasCompletedOnboardingKey, true) }
                                 }
                             }
                             if (onboardingStep < 3) onboardingStep++
@@ -797,7 +803,7 @@ fun TapLockScreen() {
                             onClick = {
                                 showOnboarding = false
                                 context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit { putBoolean(context.getString(R.string.has_completed_onboarding), true) }
+                                    .edit { putBoolean(hasCompletedOnboardingKey, true) }
                             }
                         ) {
                             Text(stringResource(R.string.onboarding_skip))

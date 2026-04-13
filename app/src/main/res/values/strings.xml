@@ -1,5 +1,5 @@
-<resources>
-    <string name="app_name">TapLock - Double Tap to Lock Your Screen</string>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name" tools:ignore="UnusedResources">TapLock - Double Tap to Lock Your Screen</string>
     <string name="app_name_short">TapLock</string>
     <string name="shared_pref_name">com.ah.taplock.SHARED_PREFERENCES_Key</string>
     <string name="double_tap_timeout">double_tap_timeout</string>
@@ -16,10 +16,6 @@
     <string name="github_url">https://github.com/modelorona/TapLock</string>
     <string name="required_permissions">Required Permissions</string>
     <string name="accessibility_service">Accessibility Service</string>
-    <string name="timeout_updated">Timeout updated</string>
-    <string name="update">Update</string>
-    <string name="timeout_label">Double Tap Timeout (ms)</string>
-    <string name="clear_value">Clear</string>
     <string name="settings_label">Settings</string>
     <string name="enable">Enable</string>
     <string name="enabled">Enabled</string>
@@ -31,11 +27,7 @@
     <string name="accessibility_permission_required">Accessibility permission required</string>
     <string name="vibrate_on_lock">vibrate_on_lock</string>
     <string name="vibrate_on_lock_label">Vibrate on Lock</string>
-    <string name="battery_enabled">Currently enabled</string>
     <string name="battery_optimization_description">If the widget stops working after a while, try disabling battery optimization for this app. This allows the accessibility service to run more reliably in the background.</string>
-    <string name="battery_disable">Disable</string>
-    <string name="battery_disabled">Currently disabled</string>
-    <string name="battery_enable">Enable</string>
     <string name="status_bar_double_tap">status_bar_double_tap</string>
     <string name="status_bar_double_tap_label">Double-Tap Status Bar to Lock</string>
     <string name="status_bar_double_tap_description">Double tap on the status bar to lock the screen.</string>
@@ -81,7 +73,10 @@
     <string name="lock_delay_two">2s</string>
 
     <string name="lock_count">lock_count</string>
-    <string name="lock_count_label">Locked %d times with TapLock</string>
+    <plurals name="lock_count_label">
+        <item quantity="one">Locked %d time with TapLock</item>
+        <item quantity="other">Locked %d times with TapLock</item>
+    </plurals>
 
     <string name="tap_test_label">Tap here to test</string>
     <string name="tap_test_success">Double-tap detected!</string>

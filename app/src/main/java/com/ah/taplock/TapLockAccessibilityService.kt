@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
+import androidx.core.content.edit
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -24,6 +25,7 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "TapLock"
+        @Suppress("StaticFieldLeak") // Intentional: cleared in onUnbind/onDestroy
         var instance: TapLockAccessibilityService? = null
             private set
     }
@@ -69,7 +71,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     fun lockScreen() {
         val prefs = getPrefs()
         val count = prefs.getInt(getString(R.string.lock_count), 0)
-        prefs.edit().putInt(getString(R.string.lock_count), count + 1).apply()
+        prefs.edit { putInt(getString(R.string.lock_count), count + 1) }
         performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
     }
 

@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -48,10 +47,10 @@ class TapLockTileService : TileService() {
                 startService(accessibilityIntent)
             } else {
                 Toast.makeText(this, getString(R.string.accessibility_permission_required), Toast.LENGTH_LONG).show()
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                
-                if (Build.VERSION.SDK_INT >= 34) {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                if (android.os.Build.VERSION.SDK_INT >= 34) {
                     val pendingIntent = PendingIntent.getActivity(
                         this,
                         0,
@@ -60,7 +59,7 @@ class TapLockTileService : TileService() {
                     )
                     startActivityAndCollapse(pendingIntent)
                 } else {
-                    @Suppress("DEPRECATION")
+                    @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
                     startActivityAndCollapse(intent)
                 }
             }

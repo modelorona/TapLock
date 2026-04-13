@@ -25,7 +25,8 @@
       "Bash(./gradlew compileDebugKotlin)",
       "Bash(./gradlew test:*)",
       "Bash(./gradlew dependencyUpdates)",
-      "Bash(./gradlew :app:dependencies --configuration debugRuntimeClasspath)"
+      "Bash(./gradlew :app:dependencies --configuration debugRuntimeClasspath)",
+      "Bash(./gradlew lintDebug)"
     ]
   }
 }
