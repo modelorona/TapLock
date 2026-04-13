@@ -53,5 +53,9 @@
     <string name="battery_action_restrict">Restrict</string>
 
     <string name="slider_timeout_label">Double Tap Timeout: %dms</string>
+    <string name="vibration_pattern">vibration_pattern</string>
+    <string name="vibration_light">Light</string>
+    <string name="vibration_medium">Medium</string>
+    <string name="vibration_strong">Strong</string>
     <string name="accessibility_required_hint">Enable accessibility service to use these features</string>
 </resources>

@@ -7,10 +7,6 @@ import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.media.AudioAttributes
-import android.os.VibrationAttributes
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -29,21 +25,7 @@ class TapLockTileService : TileService() {
         val prefs = getSharedPreferences(getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
         val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
         if (vibrateOnLock) {
-            val vibrator = getSystemService(Vibrator::class.java)
-            val effect = VibrationEffect.createOneShot(50, 80)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val attrs = VibrationAttributes.Builder()
-                    .setUsage(VibrationAttributes.USAGE_ALARM)
-                    .build()
-                vibrator.vibrate(effect, attrs)
-            } else {
-                @Suppress("DEPRECATION")
-                val attrs = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .build()
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(effect, attrs)
-            }
+            VibrationHelper.vibrate(this, VibrationHelper.fromPrefs(this))
         }
 
         // Try direct call first for speed

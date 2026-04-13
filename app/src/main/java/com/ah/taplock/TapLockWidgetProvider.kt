@@ -8,11 +8,6 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
-import android.media.AudioAttributes
-import android.os.Build
-import android.os.VibrationAttributes
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
@@ -88,21 +83,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         if (doubleTapDetector.onTap(timeout)) {
             val vibrateOnLock = prefs.getBoolean(context.getString(R.string.vibrate_on_lock), true)
             if (vibrateOnLock) {
-                val vibrator = context.getSystemService(Vibrator::class.java)
-                val effect = VibrationEffect.createOneShot(50, 80)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val attrs = VibrationAttributes.Builder()
-                        .setUsage(VibrationAttributes.USAGE_ALARM)
-                        .build()
-                    vibrator.vibrate(effect, attrs)
-                } else {
-                    @Suppress("DEPRECATION")
-                    val attrs = AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ALARM)
-                        .build()
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(effect, attrs)
-                }
+                VibrationHelper.vibrate(context, VibrationHelper.fromPrefs(context))
             }
 
             // Delay lock slightly so the haptic feedback can complete

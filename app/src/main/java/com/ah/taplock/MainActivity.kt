@@ -37,6 +37,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -122,6 +123,7 @@ fun TapLockScreen() {
     var timeoutValue by remember { mutableStateOf(300f) }
     var showIcon by remember { mutableStateOf(false) }
     var vibrateOnLock by remember { mutableStateOf(true) }
+    var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
     var statusBarDoubleTap by remember { mutableStateOf(false) }
     var lockScreenDoubleTap by remember { mutableStateOf(false) }
     var infoExpanded by remember { mutableStateOf(true) }
@@ -131,6 +133,7 @@ fun TapLockScreen() {
         timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toFloat()
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
+        vibrationPattern = VibrationHelper.fromPrefs(context)
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
         lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
         infoExpanded = !prefs.getBoolean(hasSeenInfoKey, false)
@@ -375,6 +378,45 @@ fun TapLockScreen() {
                             },
                             modifier = Modifier.testTag("switch_vibrate")
                         )
+                    }
+
+                    if (vibrateOnLock) {
+                        val vibrationPatternKey = stringResource(R.string.vibration_pattern)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = vibrationPattern == VibrationPattern.LIGHT,
+                                onClick = {
+                                    vibrationPattern = VibrationPattern.LIGHT
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putString(vibrationPatternKey, VibrationPattern.LIGHT.name) }
+                                },
+                                label = { Text(stringResource(R.string.vibration_light)) },
+                                modifier = Modifier.testTag("chip_light")
+                            )
+                            FilterChip(
+                                selected = vibrationPattern == VibrationPattern.MEDIUM,
+                                onClick = {
+                                    vibrationPattern = VibrationPattern.MEDIUM
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putString(vibrationPatternKey, VibrationPattern.MEDIUM.name) }
+                                },
+                                label = { Text(stringResource(R.string.vibration_medium)) },
+                                modifier = Modifier.testTag("chip_medium")
+                            )
+                            FilterChip(
+                                selected = vibrationPattern == VibrationPattern.STRONG,
+                                onClick = {
+                                    vibrationPattern = VibrationPattern.STRONG
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putString(vibrationPatternKey, VibrationPattern.STRONG.name) }
+                                },
+                                label = { Text(stringResource(R.string.vibration_strong)) },
+                                modifier = Modifier.testTag("chip_strong")
+                            )
+                        }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
