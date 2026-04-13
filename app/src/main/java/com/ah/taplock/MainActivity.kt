@@ -19,6 +19,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -71,11 +72,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -99,6 +103,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent?.action == "com.ah.taplock.LOCK_NOW") {
+            TapLockAccessibilityService.instance?.lockScreen()
+            finish()
+            return
+        }
         setContent {
             TapLockTheme {
                 TapLockScreen()
@@ -146,6 +155,8 @@ fun TapLockScreen() {
     var onboardingStep by remember { mutableIntStateOf(0) }
     var lockDelayMs by remember { mutableIntStateOf(0) }
     var lockCount by remember { mutableIntStateOf(0) }
+    var lockZonePercent by remember { mutableStateOf(66f) }
+    var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -159,6 +170,12 @@ fun TapLockScreen() {
         showOnboarding = !prefs.getBoolean(context.getString(R.string.has_completed_onboarding), false)
         lockDelayMs = prefs.getInt(context.getString(R.string.lock_delay_ms), 0)
         lockCount = prefs.getInt(context.getString(R.string.lock_count), 0)
+        lockZonePercent = prefs.getInt(context.getString(R.string.lock_zone_percent), 66).toFloat()
+        // Load custom icon for preview
+        val iconFile = File(context.filesDir, "custom_widget_icon.png")
+        widgetIconBitmap = if (iconFile.exists()) {
+            BitmapFactory.decodeFile(iconFile.absolutePath)?.asImageBitmap()
+        } else null
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -180,6 +197,8 @@ fun TapLockScreen() {
                         }
                         withContext(Dispatchers.Main) {
                             Toast.makeText(context, customIconUpdatedMsg, Toast.LENGTH_SHORT).show()
+                            val newIconFile = File(context.filesDir, "custom_widget_icon.png")
+                            widgetIconBitmap = BitmapFactory.decodeFile(newIconFile.absolutePath)?.asImageBitmap()
                             val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
                             val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
                                 action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
@@ -445,6 +464,26 @@ fun TapLockScreen() {
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+                    val hasNoWidgets = remember {
+                        AppWidgetManager.getInstance(context).getAppWidgetIds(
+                            ComponentName(context, TapLockWidgetProvider::class.java)
+                        ).isEmpty()
+                    }
+                    if (hasNoWidgets) {
+                        Button(
+                            onClick = {
+                                val appWidgetManager = AppWidgetManager.getInstance(context)
+                                val widgetComponent = ComponentName(context, TapLockWidgetProvider::class.java)
+                                appWidgetManager.requestPinAppWidget(widgetComponent, null, null)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.add_widget_button))
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -473,6 +512,37 @@ fun TapLockScreen() {
                     }
 
                     if (showIcon) {
+                        // Widget icon preview
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(R.string.widget_preview_label),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            val previewBitmap = widgetIconBitmap ?: remember {
+                                val drawable = context.packageManager.getApplicationIcon(context.packageName)
+                                val bmp = Bitmap.createBitmap(
+                                    drawable.intrinsicWidth,
+                                    drawable.intrinsicHeight,
+                                    Bitmap.Config.ARGB_8888
+                                )
+                                val canvas = android.graphics.Canvas(bmp)
+                                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                                drawable.draw(canvas)
+                                bmp.asImageBitmap()
+                            }
+                            Image(
+                                bitmap = previewBitmap,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -492,6 +562,7 @@ fun TapLockScreen() {
                                     if (file.exists()) {
                                         file.delete()
                                         Toast.makeText(context, customIconResetMsg, Toast.LENGTH_SHORT).show()
+                                        widgetIconBitmap = null
                                         val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
                                         val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
                                             action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
@@ -560,6 +631,25 @@ fun TapLockScreen() {
                             },
                             enabled = isAccessibilityEnabled,
                             modifier = Modifier.testTag("switch_lock_screen")
+                        )
+                    }
+
+                    if (lockScreenDoubleTap) {
+                        val lockZoneKey = stringResource(R.string.lock_zone_percent)
+                        Text(
+                            stringResource(R.string.lock_zone_label, lockZonePercent.toInt()),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = lockZonePercent,
+                            onValueChange = { lockZonePercent = it },
+                            onValueChangeFinished = {
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit { putInt(lockZoneKey, lockZonePercent.toInt()) }
+                            },
+                            valueRange = 20f..100f,
+                            steps = 15,
+                            modifier = Modifier.testTag("slider_lock_zone")
                         )
                     }
 

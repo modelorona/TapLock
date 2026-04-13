@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="lock_now"
+        android:enabled="true"
+        android:icon="@drawable/ic_lock_tile"
+        android:shortcutShortLabel="@string/shortcut_lock_short"
+        android:shortcutLongLabel="@string/shortcut_lock_label">
+        <intent
+            android:action="com.ah.taplock.LOCK_NOW"
+            android:targetPackage="com.ah.taplock"
+            android:targetClass="com.ah.taplock.MainActivity" />
+    </shortcut>
+</shortcuts>

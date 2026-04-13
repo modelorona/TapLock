@@ -92,6 +92,9 @@ class TapLockAccessibilityService : AccessibilityService() {
             when (key) {
                 getString(R.string.status_bar_double_tap),
                 getString(R.string.lock_screen_double_tap) -> updateOverlay()
+                getString(R.string.lock_zone_percent) -> {
+                    if (statusBarOverlay != null) updateOverlayForLockScreen()
+                }
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
@@ -269,8 +272,8 @@ class TapLockAccessibilityService : AccessibilityService() {
     private fun getLockScreenOverlayHeight(): Int {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val screenHeight = wm.currentWindowMetrics.bounds.height()
-        // Leave bottom third uncovered for on-screen fingerprint sensors
-        return (screenHeight * 2) / 3
+        val percent = getPrefs().getInt(getString(R.string.lock_zone_percent), 66)
+        return (screenHeight * percent) / 100
     }
 
     private fun handleLockScreenTap(tapTimeMs: Long, x: Float, y: Float) {
