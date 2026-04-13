@@ -85,7 +85,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     private fun getPrefs(): SharedPreferences {
-        return getSharedPreferences(getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
+        return getSharedPreferences(getString(R.string.shared_pref_name), MODE_PRIVATE)
     }
 
     private fun registerPrefListener() {
@@ -235,7 +235,7 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun updateOverlayForLockScreen() {
         val overlay = statusBarOverlay ?: return
-        val km = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
         val locked = km.isKeyguardLocked
         val wasOnLockScreen = isOnLockScreen
         isOnLockScreen = locked

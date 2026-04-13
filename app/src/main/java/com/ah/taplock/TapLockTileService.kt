@@ -21,7 +21,7 @@ class TapLockTileService : TileService() {
     override fun onClick() {
         super.onClick()
 
-        val prefs = getSharedPreferences(getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences(getString(R.string.shared_pref_name), MODE_PRIVATE)
         val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
         val lockDelay = prefs.getInt(getString(R.string.lock_delay_ms), 0).toLong()
         if (vibrateOnLock) {
