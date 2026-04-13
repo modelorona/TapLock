@@ -15,32 +15,37 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -51,19 +56,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -82,18 +89,14 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             TapLockTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    TapLockScreen()
-                }
+                TapLockScreen()
             }
         }
     }
 
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TapLockScreen() {
     val context = LocalContext.current
@@ -108,11 +111,12 @@ fun TapLockScreen() {
     val lockScreenDoubleTapKey = stringResource(R.string.lock_screen_double_tap)
     val customIconUpdatedMsg = stringResource(R.string.custom_icon_updated)
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
+    val hasSeenInfoKey = stringResource(R.string.has_seen_info)
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-    var showDialog by remember { mutableStateOf(false) } //
+    var showDialog by remember { mutableStateOf(false) }
 
     var isAccessibilityEnabled by remember {
         mutableStateOf(isAccessibilityEnabled(context))
@@ -128,6 +132,7 @@ fun TapLockScreen() {
     var vibrateOnLock by remember { mutableStateOf(true) }
     var statusBarDoubleTap by remember { mutableStateOf(false) }
     var lockScreenDoubleTap by remember { mutableStateOf(false) }
+    var infoExpanded by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -136,6 +141,7 @@ fun TapLockScreen() {
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
         lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
+        infoExpanded = !prefs.getBoolean(hasSeenInfoKey, false)
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -145,7 +151,6 @@ fun TapLockScreen() {
                     try {
                         context.contentResolver.openInputStream(uri)?.use { inputStream ->
                             val bitmap = BitmapFactory.decodeStream(inputStream)
-                            // Scale down if necessary to avoid TransactionTooLargeException
                             val scaledBitmap = if (bitmap.width > 512 || bitmap.height > 512) {
                                 bitmap.scale(512, 512)
                             } else {
@@ -158,7 +163,6 @@ fun TapLockScreen() {
                         }
                         withContext(Dispatchers.Main) {
                             Toast.makeText(context, customIconUpdatedMsg, Toast.LENGTH_SHORT).show()
-                            // Update Widgets
                             val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
                             val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
                                 action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
@@ -174,17 +178,15 @@ fun TapLockScreen() {
         }
     }
 
-    val uriHandler = LocalUriHandler.current
     val disclaimerString = buildAnnotatedString {
         append(stringResource(R.string.home_screen_disclaimer))
         append(" ")
-        pushStringAnnotation(tag="URL", annotation = githubUrl)
-        withStyle(style = SpanStyle(
-            textDecoration = TextDecoration.Underline
+        withLink(LinkAnnotation.Url(
+            url = githubUrl,
+            styles = TextLinkStyles(style = SpanStyle(textDecoration = TextDecoration.Underline))
         )) {
             append(githubUrl)
         }
-        pop()
     }
 
     DisposableEffect(Unit) {
@@ -202,296 +204,268 @@ fun TapLockScreen() {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(8.dp),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    stringResource(R.string.home_screen_description),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.top_bar_title)) }
+            )
         }
-
-        Card(
-            modifier = Modifier.fillMaxWidth()
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(innerPadding)
+                .padding(8.dp),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    stringResource(R.string.home_screen_instructions),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    disclaimerString,
-                    modifier = Modifier.clickable {
-                        uriHandler.openUri(githubUrl)
-                    },
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    stringResource(R.string.required_permissions),
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(stringResource(R.string.accessibility_service), modifier = Modifier.weight(1f))
-                    Button(
-                        onClick = { showDialog = true },
-                        enabled = !isAccessibilityEnabled,
-                    ) {
-                        Text(text = if (isAccessibilityEnabled) stringResource(R.string.enabled) else stringResource(R.string.enable))
+            // Collapsible info section
+            InfoSection(
+                expanded = infoExpanded,
+                onToggle = {
+                    infoExpanded = !infoExpanded
+                    if (!infoExpanded) {
+                        context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                            .edit { putBoolean(hasSeenInfoKey, true) }
                     }
-                }
-            }
-        }
+                },
+                disclaimerString = disclaimerString
+            )
 
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+            Card(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    stringResource(R.string.battery_optimization_description),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        if (isBatteryOptimized) stringResource(R.string.battery_enabled)
-                        else stringResource(R.string.battery_disabled),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Button(
-                        onClick = {
-                            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                        }
-                    ) {
-                        Text(
-                            if (isBatteryOptimized) stringResource(R.string.battery_disable)
-                            else stringResource(R.string.battery_enable)
-                        )
-                    }
-                }
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    stringResource(R.string.settings_label),
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextField(
-                        label = { Text(stringResource(R.string.timeout_label)) },
-                        value = timeoutValue,
-                        onValueChange = { newValue: String ->
-                            timeoutValue = newValue
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier
-                            .weight(1f)
-                            .focusRequester(focusRequester),
-                        trailingIcon = {
-                            if (timeoutValue.isNotEmpty()) {
-                                IconButton(onClick = { timeoutValue = "" }) {
-                                    Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_value))
-                                }
-                            }
-                        },
+                        stringResource(R.string.required_permissions),
+                        style = MaterialTheme.typography.titleMedium
                     )
 
-                    Button(
-                        enabled = timeoutValue.isNotEmpty(),
-                        onClick = {
-                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                .edit {
-                                    putInt(
-                                        doubleTapTimeoutKey,
-                                        timeoutValue.toInt()
-                                    )
-                                }
-                            Toast.makeText(context, timeoutUpdatedMsg, Toast.LENGTH_SHORT).show()
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                        }
-                    ) {
-                        Text(stringResource(R.string.update))
-                    }
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(stringResource(R.string.vibrate_on_lock_label))
-                    Switch(
-                        checked = vibrateOnLock,
-                        onCheckedChange = { isChecked ->
-                            vibrateOnLock = isChecked
-                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                .edit {
-                                    putBoolean(vibrateOnLockKey, isChecked)
-                                }
-                        },
-                        modifier = Modifier.testTag("switch_vibrate")
-                    )
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(stringResource(R.string.show_widget_icon_label))
-                    Switch(
-                        checked = showIcon,
-                        onCheckedChange = { isChecked ->
-                            showIcon = isChecked
-                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                .edit {
-                                    putBoolean(showWidgetIconKey, isChecked)
-                                }
-
-                            // Update Widgets
-                            val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
-                            val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
-                                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                            }
-                            context.sendBroadcast(intent)
-                        },
-                        modifier = Modifier.testTag("switch_show_icon")
-                    )
-                }
-
-                if (showIcon) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Text(stringResource(R.string.accessibility_service), modifier = Modifier.weight(1f))
                         Button(
-                            onClick = {
-                                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                            },
-                            modifier = Modifier.weight(1f)
+                            onClick = { showDialog = true },
+                            enabled = !isAccessibilityEnabled,
                         ) {
-                            Text(stringResource(R.string.select_icon))
-                        }
-                        Button(
-                            onClick = {
-                                val file = File(context.filesDir, "custom_widget_icon.png")
-                                if (file.exists()) {
-                                    file.delete()
-                                    Toast.makeText(context, customIconResetMsg, Toast.LENGTH_SHORT).show()
-                                    // Update Widgets
-                                    val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
-                                    val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
-                                        action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                                    }
-                                    context.sendBroadcast(intent)
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(stringResource(R.string.reset_icon))
+                            Text(text = if (isAccessibilityEnabled) stringResource(R.string.enabled) else stringResource(R.string.enable))
                         }
                     }
                 }
+            }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(stringResource(R.string.status_bar_double_tap_label))
+                    Text(
+                        stringResource(R.string.battery_optimization_description),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            stringResource(R.string.status_bar_double_tap_description),
-                            style = MaterialTheme.typography.bodySmall
+                            if (isBatteryOptimized) stringResource(R.string.battery_status_restricting)
+                            else stringResource(R.string.battery_status_unrestricted),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Button(
+                            onClick = {
+                                context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                            }
+                        ) {
+                            Text(
+                                if (isBatteryOptimized) stringResource(R.string.battery_action_fix)
+                                else stringResource(R.string.battery_action_restrict)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.settings_label),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            label = { Text(stringResource(R.string.timeout_label)) },
+                            value = timeoutValue,
+                            onValueChange = { newValue: String ->
+                                timeoutValue = newValue
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester),
+                            trailingIcon = {
+                                if (timeoutValue.isNotEmpty()) {
+                                    IconButton(onClick = { timeoutValue = "" }) {
+                                        Icon(Icons.Filled.Clear, contentDescription = stringResource(R.string.clear_value))
+                                    }
+                                }
+                            },
+                        )
+
+                        Button(
+                            enabled = timeoutValue.isNotEmpty(),
+                            onClick = {
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putInt(
+                                            doubleTapTimeoutKey,
+                                            timeoutValue.toInt()
+                                        )
+                                    }
+                                Toast.makeText(context, timeoutUpdatedMsg, Toast.LENGTH_SHORT).show()
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                            }
+                        ) {
+                            Text(stringResource(R.string.update))
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.vibrate_on_lock_label))
+                        Switch(
+                            checked = vibrateOnLock,
+                            onCheckedChange = { isChecked ->
+                                vibrateOnLock = isChecked
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putBoolean(vibrateOnLockKey, isChecked)
+                                    }
+                            },
+                            modifier = Modifier.testTag("switch_vibrate")
                         )
                     }
-                    Switch(
-                        checked = statusBarDoubleTap,
-                        onCheckedChange = { isChecked ->
-                            statusBarDoubleTap = isChecked
-                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                .edit {
-                                    putBoolean(statusBarDoubleTapKey, isChecked)
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.show_widget_icon_label))
+                        Switch(
+                            checked = showIcon,
+                            onCheckedChange = { isChecked ->
+                                showIcon = isChecked
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putBoolean(showWidgetIconKey, isChecked)
+                                    }
+
+                                val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
+                                val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
+                                    action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
                                 }
-                        },
-                        modifier = Modifier.testTag("switch_status_bar")
-                    )
-                }
+                                context.sendBroadcast(intent)
+                            },
+                            modifier = Modifier.testTag("switch_show_icon")
+                        )
+                    }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    if (showIcon) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(stringResource(R.string.select_icon))
+                            }
+                            Button(
+                                onClick = {
+                                    val file = File(context.filesDir, "custom_widget_icon.png")
+                                    if (file.exists()) {
+                                        file.delete()
+                                        Toast.makeText(context, customIconResetMsg, Toast.LENGTH_SHORT).show()
+                                        val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
+                                        val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
+                                            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                                        }
+                                        context.sendBroadcast(intent)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(stringResource(R.string.reset_icon))
+                            }
+                        }
+                    }
 
-                Row(
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.status_bar_double_tap_label))
+                            Text(
+                                stringResource(R.string.status_bar_double_tap_description),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Switch(
+                            checked = statusBarDoubleTap,
+                            onCheckedChange = { isChecked ->
+                                statusBarDoubleTap = isChecked
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putBoolean(statusBarDoubleTapKey, isChecked)
+                                    }
+                            },
+                            modifier = Modifier.testTag("switch_status_bar")
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -517,7 +491,7 @@ fun TapLockScreen() {
                     }
                 }
             }
-
+        }
 
         if (showDialog) {
             AlertDialog(
@@ -542,6 +516,66 @@ fun TapLockScreen() {
                     }
                 }
             )
+        }
+    }
+}
+
+@Composable
+fun InfoSection(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    disclaimerString: androidx.compose.ui.text.AnnotatedString
+) {
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "chevron"
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle() },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    stringResource(R.string.info_section_header),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Icon(
+                    imageVector = Icons.Filled.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.rotate(chevronRotation)
+                )
+            }
+
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.home_screen_description),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        stringResource(R.string.home_screen_instructions),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        disclaimerString,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
         }
     }
 }

@@ -96,9 +96,11 @@ class TapLockWidgetProvider : AppWidgetProvider() {
                         .build()
                     vibrator.vibrate(effect, attrs)
                 } else {
+                    @Suppress("DEPRECATION")
                     val attrs = AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
                         .build()
+                    @Suppress("DEPRECATION")
                     vibrator.vibrate(effect, attrs)
                 }
             }

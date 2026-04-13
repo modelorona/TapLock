@@ -280,7 +280,6 @@ class TapLockAccessibilityService : AccessibilityService() {
         if (clickedNode != null) {
             Log.d(TAG, "lock screen tap: forwarding click to interactive element")
             clickedNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            clickedNode.recycle()
             doubleTapDetector.reset()
             return
         }
@@ -300,10 +299,8 @@ class TapLockAccessibilityService : AccessibilityService() {
             val root = window.root ?: continue
             val result = findDeepestClickableNode(root, x, y, nodeRect)
             if (result != null) {
-                root.recycle()
                 return result
             }
-            root.recycle()
         }
         return null
     }
@@ -322,15 +319,13 @@ class TapLockAccessibilityService : AccessibilityService() {
             val child = node.getChild(i) ?: continue
             val result = findDeepestClickableNode(child, x, y, rect)
             if (result != null) {
-                child.recycle()
                 return result
             }
-            child.recycle()
         }
 
         // This node contains the point — is it clickable?
         if (node.isClickable) {
-            return AccessibilityNodeInfo.obtain(node)
+            return node
         }
         return null
     }

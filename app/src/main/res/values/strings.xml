@@ -42,4 +42,13 @@
     <string name="lock_screen_double_tap">lock_screen_double_tap</string>
     <string name="lock_screen_double_tap_label">Double-Tap Lock Screen to Lock</string>
     <string name="lock_screen_double_tap_description">When the screen is locked, double-tap on the top two-thirds of the screen to lock.</string>
+
+    <string name="top_bar_title">TapLock</string>
+    <string name="info_section_header">About</string>
+    <string name="has_seen_info">has_seen_info</string>
+
+    <string name="battery_status_restricting">Restricting TapLock (not recommended)</string>
+    <string name="battery_status_unrestricted">Unrestricted (recommended)</string>
+    <string name="battery_action_fix">Fix</string>
+    <string name="battery_action_restrict">Restrict</string>
 </resources>

@@ -18,7 +18,14 @@
       "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug 2>&1 | tail -5)",
       "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew testDebugUnitTest 2>&1 | tail -10)",
       "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" ./gradlew assembleDebug testDebugUnitTest 2>&1 | tail -5)",
-      "Bash(./gradlew assembleDebug)"
+      "Bash(./gradlew assembleDebug)",
+      "Bash(xargs ls:*)",
+      "Bash(./gradlew --version)",
+      "Bash(git:*)",
+      "Bash(./gradlew compileDebugKotlin)",
+      "Bash(./gradlew test:*)",
+      "Bash(./gradlew dependencyUpdates)",
+      "Bash(./gradlew :app:dependencies --configuration debugRuntimeClasspath)"
     ]
   }
 }
