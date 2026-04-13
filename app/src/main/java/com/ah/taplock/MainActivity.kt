@@ -137,6 +137,7 @@ fun TapLockScreen() {
     val lockDelayMsKey = stringResource(R.string.lock_delay_ms)
     val lockCountKey = stringResource(R.string.lock_count)
     val lockZonePercentKey = stringResource(R.string.lock_zone_percent)
+    val floatingButtonKey = stringResource(R.string.floating_button_enabled)
 
     var showDialog by remember { mutableStateOf(false) }
 
@@ -161,6 +162,7 @@ fun TapLockScreen() {
     var lockDelayMs by remember { mutableIntStateOf(0) }
     var lockCount by remember { mutableIntStateOf(0) }
     var lockZonePercent by remember { mutableFloatStateOf(66f) }
+    var floatingButtonEnabled by remember { mutableStateOf(false) }
     var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
     LaunchedEffect(Unit) {
@@ -176,6 +178,7 @@ fun TapLockScreen() {
         lockDelayMs = prefs.getInt(lockDelayMsKey, 0)
         lockCount = prefs.getInt(lockCountKey, 0)
         lockZonePercent = prefs.getInt(lockZonePercentKey, 66).toFloat()
+        floatingButtonEnabled = prefs.getBoolean(floatingButtonKey, false)
         // Load custom icon for preview
         val iconFile = File(context.filesDir, "custom_widget_icon.png")
         widgetIconBitmap = if (iconFile.exists()) {
@@ -239,6 +242,11 @@ fun TapLockScreen() {
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
+                // If user just granted overlay permission, start the service
+                if (floatingButtonEnabled && !android.provider.Settings.canDrawOverlays(context)) {
+                    floatingButtonEnabled = false
+                    prefs.edit().putBoolean(floatingButtonKey, false).apply()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -654,6 +662,47 @@ fun TapLockScreen() {
                             valueRange = 20f..100f,
                             steps = 15,
                             modifier = Modifier.testTag("slider_lock_zone")
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(R.string.floating_button_label))
+                            Text(
+                                stringResource(R.string.floating_button_description),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Switch(
+                            checked = floatingButtonEnabled,
+                            onCheckedChange = { isChecked ->
+                                if (isChecked && !android.provider.Settings.canDrawOverlays(context)) {
+                                    context.startActivity(
+                                        Intent(
+                                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            android.net.Uri.parse("package:${context.packageName}")
+                                        )
+                                    )
+                                    return@Switch
+                                }
+                                floatingButtonEnabled = isChecked
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit { putBoolean(floatingButtonKey, isChecked) }
+                                val serviceIntent = Intent(context, FloatingButtonService::class.java)
+                                if (isChecked) {
+                                    context.startForegroundService(serviceIntent)
+                                } else {
+                                    context.stopService(serviceIntent)
+                                }
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("switch_floating_button")
                         )
                     }
 

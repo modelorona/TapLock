@@ -87,4 +87,11 @@
     <string name="lock_zone_label">Lock screen tap zone: %d%%</string>
     <string name="shortcut_lock_label">Lock Now</string>
     <string name="shortcut_lock_short">Lock</string>
+
+    <string name="floating_button_enabled">floating_button_enabled</string>
+    <string name="floating_button_label">Floating Lock Button</string>
+    <string name="floating_button_description">Show a floating button over other apps to lock with a single tap.</string>
+    <string name="floating_button_notification_channel">Floating Button</string>
+    <string name="floating_button_notification_title">TapLock floating button active</string>
+    <string name="floating_button_notification_body">Tap to open settings</string>
 </resources>
