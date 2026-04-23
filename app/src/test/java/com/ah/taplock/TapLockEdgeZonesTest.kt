@@ -62,6 +62,38 @@ class TapLockEdgeZonesTest {
     }
 
     @Test
+    fun buildCornerFrame_topLeftAnchorsToOrigin() {
+        val frame = TapLockEdgeZones.buildCornerFrame(
+            screenWidthPx = 1080,
+            screenHeightPx = 2400,
+            sizeDp = 48,
+            density = 2f,
+            position = CornerZonePosition.TOP_LEFT
+        )
+
+        assertEquals(96, frame.widthPx)
+        assertEquals(96, frame.heightPx)
+        assertEquals(0, frame.x)
+        assertEquals(0, frame.y)
+    }
+
+    @Test
+    fun buildCornerFrame_bottomRightAnchorsToBottomRightAndClampsSize() {
+        val frame = TapLockEdgeZones.buildCornerFrame(
+            screenWidthPx = 1080,
+            screenHeightPx = 2400,
+            sizeDp = 999,
+            density = 3f,
+            position = CornerZonePosition.BOTTOM_RIGHT
+        )
+
+        assertEquals(TapLockEdgeZones.MAX_CORNER_SIZE_DP * 3, frame.widthPx)
+        assertEquals(TapLockEdgeZones.MAX_CORNER_SIZE_DP * 3, frame.heightPx)
+        assertEquals(720, frame.x)
+        assertEquals(2040, frame.y)
+    }
+
+    @Test
     fun deriveOffsetsFromCoverage_preservesCenteredLegacyBand() {
         val (topOffsetPercent, bottomOffsetPercent) =
             TapLockEdgeZones.deriveOffsetsFromCoverage(45)

@@ -72,12 +72,28 @@ class SettingsUiTest {
     }
 
     @Test
-    fun defaultValues_edgeZonesAreOff() {
+    fun defaultValues_interactionZonesAreOff() {
         composeTestRule.onNodeWithTag("switch_left_edge_zone")
             .performScrollTo()
             .assertIsOff()
 
         composeTestRule.onNodeWithTag("switch_right_edge_zone")
+            .performScrollTo()
+            .assertIsOff()
+
+        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
+            .performScrollTo()
+            .assertIsOff()
+
+        composeTestRule.onNodeWithTag("switch_top_right_corner_zone")
+            .performScrollTo()
+            .assertIsOff()
+
+        composeTestRule.onNodeWithTag("switch_bottom_left_corner_zone")
+            .performScrollTo()
+            .assertIsOff()
+
+        composeTestRule.onNodeWithTag("switch_bottom_right_corner_zone")
             .performScrollTo()
             .assertIsOff()
     }
@@ -169,6 +185,20 @@ class SettingsUiTest {
     }
 
     @Test
+    fun toggleTopLeftCornerZone_updatesPref() {
+        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
+            .assertIsOn()
+
+        assertTrue(
+            getPrefs().getBoolean(context.getString(R.string.top_left_corner_lock_zone), false)
+        )
+    }
+
+    @Test
     fun updateTopEdgeOffset_updatesPref() {
         composeTestRule.onNodeWithTag("switch_left_edge_zone")
             .performScrollTo()
@@ -206,6 +236,27 @@ class SettingsUiTest {
             getPrefs().getInt(
                 context.getString(R.string.edge_zone_bottom_offset_percent),
                 TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT
+            )
+        )
+    }
+
+    @Test
+    fun updateCornerZoneSize_updatesPref() {
+        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("slider_corner_zone_size")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                assertTrue(setProgress(72f))
+            }
+
+        assertEquals(
+            72,
+            getPrefs().getInt(
+                context.getString(R.string.corner_zone_size_dp),
+                TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
             )
         )
     }

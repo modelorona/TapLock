@@ -33,9 +33,17 @@ class TapLockAccessibilityService : AccessibilityService() {
     private var statusBarOverlay: View? = null
     private var leftEdgeOverlay: View? = null
     private var rightEdgeOverlay: View? = null
+    private var topLeftCornerOverlay: View? = null
+    private var topRightCornerOverlay: View? = null
+    private var bottomLeftCornerOverlay: View? = null
+    private var bottomRightCornerOverlay: View? = null
     private val doubleTapDetector = DoubleTapDetector()
     private val leftEdgeDoubleTapDetector = DoubleTapDetector()
     private val rightEdgeDoubleTapDetector = DoubleTapDetector()
+    private val topLeftCornerDoubleTapDetector = DoubleTapDetector()
+    private val topRightCornerDoubleTapDetector = DoubleTapDetector()
+    private val bottomLeftCornerDoubleTapDetector = DoubleTapDetector()
+    private val bottomRightCornerDoubleTapDetector = DoubleTapDetector()
     private var prefListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
     private var isOnLockScreen = false
     private var currentForegroundPackage: String? = null
@@ -59,6 +67,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         instance = null
         removeStatusBarOverlay()
         removeEdgeOverlays()
+        removeCornerOverlays()
         unregisterPrefListener()
         return super.onUnbind(intent)
     }
@@ -67,6 +76,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         instance = null
         removeStatusBarOverlay()
         removeEdgeOverlays()
+        removeCornerOverlays()
         unregisterPrefListener()
         super.onDestroy()
     }
@@ -120,9 +130,14 @@ class TapLockAccessibilityService : AccessibilityService() {
                 getString(R.string.lock_screen_double_tap) -> updateOverlay()
                 getString(R.string.left_edge_lock_zone),
                 getString(R.string.right_edge_lock_zone),
+                getString(R.string.top_left_corner_lock_zone),
+                getString(R.string.top_right_corner_lock_zone),
+                getString(R.string.bottom_left_corner_lock_zone),
+                getString(R.string.bottom_right_corner_lock_zone),
                 getString(R.string.edge_zone_width_dp),
+                getString(R.string.corner_zone_size_dp),
                 getString(R.string.edge_zone_top_offset_percent),
-                getString(R.string.edge_zone_bottom_offset_percent) -> updateEdgeOverlays()
+                getString(R.string.edge_zone_bottom_offset_percent) -> updateInteractiveZoneOverlays()
                 getString(R.string.excluded_apps) -> updateOverlayTouchability()
                 getString(R.string.lock_zone_percent) -> {
                     if (statusBarOverlay != null) updateOverlayForLockScreen()
@@ -141,7 +156,7 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun updateOverlay() {
         updateStatusBarOverlay()
-        updateEdgeOverlays()
+        updateInteractiveZoneOverlays()
     }
 
     private fun updateStatusBarOverlay() {
@@ -236,11 +251,16 @@ class TapLockAccessibilityService : AccessibilityService() {
         Log.d(TAG, "addStatusBarOverlay: added, height=${statusBarHeight}px")
     }
 
+    private fun updateInteractiveZoneOverlays() {
+        updateEdgeOverlays()
+        updateCornerOverlays()
+    }
+
     private fun updateEdgeOverlays() {
         val prefs = getPrefs()
         val leftEnabled = prefs.getBoolean(getString(R.string.left_edge_lock_zone), false)
         val rightEnabled = prefs.getBoolean(getString(R.string.right_edge_lock_zone), false)
-        val canShowEdgeZones = shouldShowEdgeZones()
+        val canShowEdgeZones = shouldShowInteractiveZones()
 
         if (leftEnabled && canShowEdgeZones) {
             if (leftEdgeOverlay == null) addEdgeOverlay(EdgeZoneSide.LEFT)
@@ -257,6 +277,47 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
 
         updateEdgeOverlayTouchability()
+    }
+
+    private fun updateCornerOverlays() {
+        val prefs = getPrefs()
+        val canShowCornerZones = shouldShowInteractiveZones()
+
+        updateCornerOverlay(
+            position = CornerZonePosition.TOP_LEFT,
+            enabled = prefs.getBoolean(getString(R.string.top_left_corner_lock_zone), false),
+            canShow = canShowCornerZones
+        )
+        updateCornerOverlay(
+            position = CornerZonePosition.TOP_RIGHT,
+            enabled = prefs.getBoolean(getString(R.string.top_right_corner_lock_zone), false),
+            canShow = canShowCornerZones
+        )
+        updateCornerOverlay(
+            position = CornerZonePosition.BOTTOM_LEFT,
+            enabled = prefs.getBoolean(getString(R.string.bottom_left_corner_lock_zone), false),
+            canShow = canShowCornerZones
+        )
+        updateCornerOverlay(
+            position = CornerZonePosition.BOTTOM_RIGHT,
+            enabled = prefs.getBoolean(getString(R.string.bottom_right_corner_lock_zone), false),
+            canShow = canShowCornerZones
+        )
+
+        updateCornerOverlayTouchability()
+    }
+
+    private fun updateCornerOverlay(
+        position: CornerZonePosition,
+        enabled: Boolean,
+        canShow: Boolean
+    ) {
+        if (enabled && canShow) {
+            if (getCornerOverlay(position) == null) addCornerOverlay(position)
+            updateCornerOverlayLayout(position)
+        } else {
+            removeCornerOverlay(position)
+        }
     }
 
     private fun addEdgeOverlay(side: EdgeZoneSide) {
@@ -333,6 +394,76 @@ class TapLockAccessibilityService : AccessibilityService() {
         Log.d(TAG, "edgeOverlay: added side=$side, frame=$frame")
     }
 
+    private fun addCornerOverlay(position: CornerZonePosition) {
+        if (getCornerOverlay(position) != null) {
+            return
+        }
+
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+        val detector = getCornerDetector(position)
+
+        var downTimeMs = 0L
+        var downX = 0f
+        var downY = 0f
+        var gestureHandled = false
+
+        val overlay = View(this).apply {
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downTimeMs = System.currentTimeMillis()
+                        downX = event.rawX
+                        downY = event.rawY
+                        gestureHandled = false
+                    }
+
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!gestureHandled) {
+                            val dx = event.rawX - downX
+                            val dy = event.rawY - downY
+                            if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
+                                gestureHandled = true
+                                detector.reset()
+                            }
+                        }
+                    }
+
+                    MotionEvent.ACTION_UP -> {
+                        if (!gestureHandled) {
+                            handleCornerTap(position, downTimeMs)
+                        }
+                        v.performClick()
+                    }
+
+                    MotionEvent.ACTION_CANCEL -> {
+                        detector.reset()
+                    }
+                }
+                true
+            }
+        }
+
+        val frame = createCornerFrame(position)
+        val params = WindowManager.LayoutParams(
+            frame.widthPx,
+            frame.heightPx,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            createOverlayBaseFlags(),
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = frame.x
+            y = frame.y
+            layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
+
+        wm.addView(overlay, params)
+        setCornerOverlay(position, overlay)
+        Log.d(TAG, "cornerOverlay: added position=$position, frame=$frame")
+    }
+
     private fun updateEdgeOverlayLayout(side: EdgeZoneSide) {
         val overlay = getEdgeOverlay(side) ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -355,10 +486,40 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun updateCornerOverlayLayout(position: CornerZonePosition) {
+        val overlay = getCornerOverlay(position) ?: return
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val params = overlay.layoutParams as WindowManager.LayoutParams
+        val frame = createCornerFrame(position)
+
+        if (
+            params.width != frame.widthPx ||
+            params.height != frame.heightPx ||
+            params.x != frame.x ||
+            params.y != frame.y
+        ) {
+            params.width = frame.widthPx
+            params.height = frame.heightPx
+            params.x = frame.x
+            params.y = frame.y
+            wm.updateViewLayout(overlay, params)
+            getCornerDetector(position).reset()
+            Log.d(TAG, "cornerOverlay: updated position=$position, frame=$frame")
+        }
+    }
+
     private fun updateEdgeOverlayTouchability() {
         val touchDisabled = isCurrentAppExcluded() || isTapLockForeground()
         updateEdgeOverlayTouchability(EdgeZoneSide.LEFT, touchDisabled)
         updateEdgeOverlayTouchability(EdgeZoneSide.RIGHT, touchDisabled)
+    }
+
+    private fun updateCornerOverlayTouchability() {
+        val touchDisabled = isCurrentAppExcluded() || isTapLockForeground()
+        updateCornerOverlayTouchability(CornerZonePosition.TOP_LEFT, touchDisabled)
+        updateCornerOverlayTouchability(CornerZonePosition.TOP_RIGHT, touchDisabled)
+        updateCornerOverlayTouchability(CornerZonePosition.BOTTOM_LEFT, touchDisabled)
+        updateCornerOverlayTouchability(CornerZonePosition.BOTTOM_RIGHT, touchDisabled)
     }
 
     private fun updateEdgeOverlayTouchability(side: EdgeZoneSide, touchDisabled: Boolean) {
@@ -381,10 +542,34 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun updateCornerOverlayTouchability(
+        position: CornerZonePosition,
+        touchDisabled: Boolean
+    ) {
+        val overlay = getCornerOverlay(position) ?: return
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val params = overlay.layoutParams as WindowManager.LayoutParams
+        val newFlags = if (touchDisabled) {
+            createOverlayBaseFlags() or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        } else {
+            createOverlayBaseFlags()
+        }
+
+        if (params.flags != newFlags) {
+            params.flags = newFlags
+            wm.updateViewLayout(overlay, params)
+            if (touchDisabled) {
+                getCornerDetector(position).reset()
+            }
+            Log.d(TAG, "cornerOverlay: touchDisabled=$touchDisabled, position=$position")
+        }
+    }
+
     private fun updateOverlayTouchability() {
         refreshForegroundPackage()
         updateStatusBarOverlayTouchability()
         updateEdgeOverlayTouchability()
+        updateCornerOverlayTouchability()
     }
 
     private fun updateStatusBarOverlayTouchability() {
@@ -432,7 +617,7 @@ class TapLockAccessibilityService : AccessibilityService() {
             if (locked != wasOnLockScreen) {
                 updateOverlayTouchability()
             }
-            updateEdgeOverlays()
+            updateInteractiveZoneOverlays()
             return
         }
 
@@ -466,7 +651,7 @@ class TapLockAccessibilityService : AccessibilityService() {
             updateOverlayTouchability()
         }
 
-        updateEdgeOverlays()
+        updateInteractiveZoneOverlays()
     }
 
     private fun getLockScreenOverlayHeight(): Int {
@@ -557,12 +742,27 @@ class TapLockAccessibilityService : AccessibilityService() {
         removeEdgeOverlay(EdgeZoneSide.RIGHT)
     }
 
+    private fun removeCornerOverlays() {
+        removeCornerOverlay(CornerZonePosition.TOP_LEFT)
+        removeCornerOverlay(CornerZonePosition.TOP_RIGHT)
+        removeCornerOverlay(CornerZonePosition.BOTTOM_LEFT)
+        removeCornerOverlay(CornerZonePosition.BOTTOM_RIGHT)
+    }
+
     private fun removeEdgeOverlay(side: EdgeZoneSide) {
         val overlay = getEdgeOverlay(side) ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         wm.removeView(overlay)
         setEdgeOverlay(side, null)
         getEdgeDetector(side).reset()
+    }
+
+    private fun removeCornerOverlay(position: CornerZonePosition) {
+        val overlay = getCornerOverlay(position) ?: return
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        wm.removeView(overlay)
+        setCornerOverlay(position, null)
+        getCornerDetector(position).reset()
     }
 
     private fun handleStatusBarTap(tapTimeMs: Long) {
@@ -586,6 +786,21 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
 
         maybeTriggerLock(detector, tapTimeMs, "edge:$side")
+    }
+
+    private fun handleCornerTap(position: CornerZonePosition, tapTimeMs: Long) {
+        refreshForegroundPackage()
+        val detector = getCornerDetector(position)
+        if (isCurrentAppExcluded() || isTapLockForeground()) {
+            detector.reset()
+            Log.d(
+                TAG,
+                "cornerOverlay: ignoring tap because corner interaction is suppressed, position=$position"
+            )
+            return
+        }
+
+        maybeTriggerLock(detector, tapTimeMs, "corner:$position")
     }
 
     private fun maybeTriggerLock(
@@ -665,7 +880,23 @@ class TapLockAccessibilityService : AccessibilityService() {
         )
     }
 
-    private fun shouldShowEdgeZones(): Boolean {
+    private fun createCornerFrame(position: CornerZonePosition): EdgeZoneFrame {
+        val prefs = getPrefs()
+        val sizeDp = prefs.getInt(
+            getString(R.string.corner_zone_size_dp),
+            TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
+        )
+        val bounds = (getSystemService(WINDOW_SERVICE) as WindowManager).currentWindowMetrics.bounds
+        return TapLockEdgeZones.buildCornerFrame(
+            screenWidthPx = bounds.width(),
+            screenHeightPx = bounds.height(),
+            sizeDp = sizeDp,
+            density = resources.displayMetrics.density,
+            position = position
+        )
+    }
+
+    private fun shouldShowInteractiveZones(): Boolean {
         val bounds = (getSystemService(WINDOW_SERVICE) as WindowManager).currentWindowMetrics.bounds
         return TapLockEdgeZones.isPortrait(bounds.width(), bounds.height()) && !isDeviceLocked()
     }
@@ -678,6 +909,13 @@ class TapLockAccessibilityService : AccessibilityService() {
         EdgeZoneSide.RIGHT -> rightEdgeOverlay
     }
 
+    private fun getCornerOverlay(position: CornerZonePosition): View? = when (position) {
+        CornerZonePosition.TOP_LEFT -> topLeftCornerOverlay
+        CornerZonePosition.TOP_RIGHT -> topRightCornerOverlay
+        CornerZonePosition.BOTTOM_LEFT -> bottomLeftCornerOverlay
+        CornerZonePosition.BOTTOM_RIGHT -> bottomRightCornerOverlay
+    }
+
     private fun setEdgeOverlay(side: EdgeZoneSide, overlay: View?) {
         when (side) {
             EdgeZoneSide.LEFT -> leftEdgeOverlay = overlay
@@ -685,9 +923,25 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun setCornerOverlay(position: CornerZonePosition, overlay: View?) {
+        when (position) {
+            CornerZonePosition.TOP_LEFT -> topLeftCornerOverlay = overlay
+            CornerZonePosition.TOP_RIGHT -> topRightCornerOverlay = overlay
+            CornerZonePosition.BOTTOM_LEFT -> bottomLeftCornerOverlay = overlay
+            CornerZonePosition.BOTTOM_RIGHT -> bottomRightCornerOverlay = overlay
+        }
+    }
+
     private fun getEdgeDetector(side: EdgeZoneSide): DoubleTapDetector = when (side) {
         EdgeZoneSide.LEFT -> leftEdgeDoubleTapDetector
         EdgeZoneSide.RIGHT -> rightEdgeDoubleTapDetector
+    }
+
+    private fun getCornerDetector(position: CornerZonePosition): DoubleTapDetector = when (position) {
+        CornerZonePosition.TOP_LEFT -> topLeftCornerDoubleTapDetector
+        CornerZonePosition.TOP_RIGHT -> topRightCornerDoubleTapDetector
+        CornerZonePosition.BOTTOM_LEFT -> bottomLeftCornerDoubleTapDetector
+        CornerZonePosition.BOTTOM_RIGHT -> bottomRightCornerDoubleTapDetector
     }
 
     private fun shouldTriggerBackSwipe(

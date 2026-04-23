@@ -142,7 +142,12 @@ fun TapLockScreen() {
     val lockScreenDoubleTapKey = stringResource(R.string.lock_screen_double_tap)
     val leftEdgeLockZoneKey = stringResource(R.string.left_edge_lock_zone)
     val rightEdgeLockZoneKey = stringResource(R.string.right_edge_lock_zone)
+    val topLeftCornerLockZoneKey = stringResource(R.string.top_left_corner_lock_zone)
+    val topRightCornerLockZoneKey = stringResource(R.string.top_right_corner_lock_zone)
+    val bottomLeftCornerLockZoneKey = stringResource(R.string.bottom_left_corner_lock_zone)
+    val bottomRightCornerLockZoneKey = stringResource(R.string.bottom_right_corner_lock_zone)
     val edgeZoneWidthDpKey = stringResource(R.string.edge_zone_width_dp)
+    val cornerZoneSizeDpKey = stringResource(R.string.corner_zone_size_dp)
     val edgeZoneCoveragePercentKey = stringResource(R.string.edge_zone_coverage_percent)
     val edgeZoneTopOffsetPercentKey = stringResource(R.string.edge_zone_top_offset_percent)
     val edgeZoneBottomOffsetPercentKey = stringResource(R.string.edge_zone_bottom_offset_percent)
@@ -174,6 +179,10 @@ fun TapLockScreen() {
     var lockScreenDoubleTap by remember { mutableStateOf(false) }
     var leftEdgeZoneEnabled by remember { mutableStateOf(false) }
     var rightEdgeZoneEnabled by remember { mutableStateOf(false) }
+    var topLeftCornerZoneEnabled by remember { mutableStateOf(false) }
+    var topRightCornerZoneEnabled by remember { mutableStateOf(false) }
+    var bottomLeftCornerZoneEnabled by remember { mutableStateOf(false) }
+    var bottomRightCornerZoneEnabled by remember { mutableStateOf(false) }
     var infoExpanded by remember { mutableStateOf(true) }
     var showOnboarding by remember { mutableStateOf(false) }
     var onboardingStep by remember { mutableIntStateOf(0) }
@@ -189,6 +198,9 @@ fun TapLockScreen() {
     var edgeZoneBottomOffsetPercent by remember {
         mutableFloatStateOf(TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT.toFloat())
     }
+    var cornerZoneSizeDp by remember {
+        mutableFloatStateOf(TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP.toFloat())
+    }
     var floatingButtonEnabled by remember { mutableStateOf(false) }
     var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     var excludedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -199,15 +211,23 @@ fun TapLockScreen() {
     val edgeWidthSliderInteraction = remember { MutableInteractionSource() }
     val edgeTopOffsetSliderInteraction = remember { MutableInteractionSource() }
     val edgeBottomOffsetSliderInteraction = remember { MutableInteractionSource() }
+    val cornerSizeSliderInteraction = remember { MutableInteractionSource() }
     val isEdgeWidthSliderDragged by edgeWidthSliderInteraction.collectIsDraggedAsState()
     val isEdgeTopOffsetSliderDragged by edgeTopOffsetSliderInteraction.collectIsDraggedAsState()
     val isEdgeBottomOffsetSliderDragged by edgeBottomOffsetSliderInteraction.collectIsDraggedAsState()
-    val showLiveEdgeZoneOverlay = (
-        leftEdgeZoneEnabled || rightEdgeZoneEnabled
+    val isCornerSizeSliderDragged by cornerSizeSliderInteraction.collectIsDraggedAsState()
+    val anyEdgeZoneEnabled = leftEdgeZoneEnabled || rightEdgeZoneEnabled
+    val anyCornerZoneEnabled = topLeftCornerZoneEnabled ||
+        topRightCornerZoneEnabled ||
+        bottomLeftCornerZoneEnabled ||
+        bottomRightCornerZoneEnabled
+    val showLiveZoneOverlay = (
+        anyEdgeZoneEnabled || anyCornerZoneEnabled
         ) && (
         isEdgeWidthSliderDragged ||
             isEdgeTopOffsetSliderDragged ||
-            isEdgeBottomOffsetSliderDragged
+            isEdgeBottomOffsetSliderDragged ||
+            isCornerSizeSliderDragged
         )
 
     LaunchedEffect(Unit) {
@@ -220,6 +240,10 @@ fun TapLockScreen() {
         lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
         leftEdgeZoneEnabled = prefs.getBoolean(leftEdgeLockZoneKey, false)
         rightEdgeZoneEnabled = prefs.getBoolean(rightEdgeLockZoneKey, false)
+        topLeftCornerZoneEnabled = prefs.getBoolean(topLeftCornerLockZoneKey, false)
+        topRightCornerZoneEnabled = prefs.getBoolean(topRightCornerLockZoneKey, false)
+        bottomLeftCornerZoneEnabled = prefs.getBoolean(bottomLeftCornerLockZoneKey, false)
+        bottomRightCornerZoneEnabled = prefs.getBoolean(bottomRightCornerLockZoneKey, false)
         infoExpanded = !prefs.getBoolean(hasSeenInfoKey, false)
         showOnboarding = !prefs.getBoolean(hasCompletedOnboardingKey, false)
         lockDelayMs = prefs.getInt(lockDelayMsKey, 0)
@@ -242,6 +266,10 @@ fun TapLockScreen() {
         edgeZoneBottomOffsetPercent = prefs.getInt(
             edgeZoneBottomOffsetPercentKey,
             fallbackBottomOffsetPercent
+        ).toFloat()
+        cornerZoneSizeDp = prefs.getInt(
+            cornerZoneSizeDpKey,
+            TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
         ).toFloat()
         floatingButtonEnabled = prefs.getBoolean(floatingButtonKey, false)
         excludedPackages = TapLockAppRules.getExcludedPackages(context)
@@ -333,6 +361,10 @@ fun TapLockScreen() {
                 lockCount = prefs.getInt(lockCountKey, 0)
                 leftEdgeZoneEnabled = prefs.getBoolean(leftEdgeLockZoneKey, false)
                 rightEdgeZoneEnabled = prefs.getBoolean(rightEdgeLockZoneKey, false)
+                topLeftCornerZoneEnabled = prefs.getBoolean(topLeftCornerLockZoneKey, false)
+                topRightCornerZoneEnabled = prefs.getBoolean(topRightCornerLockZoneKey, false)
+                bottomLeftCornerZoneEnabled = prefs.getBoolean(bottomLeftCornerLockZoneKey, false)
+                bottomRightCornerZoneEnabled = prefs.getBoolean(bottomRightCornerLockZoneKey, false)
                 edgeZoneWidthDp = prefs.getInt(
                     edgeZoneWidthDpKey,
                     TapLockEdgeZones.DEFAULT_WIDTH_DP
@@ -350,6 +382,10 @@ fun TapLockScreen() {
                 edgeZoneBottomOffsetPercent = prefs.getInt(
                     edgeZoneBottomOffsetPercentKey,
                     fallbackBottomOffsetPercent
+                ).toFloat()
+                cornerZoneSizeDp = prefs.getInt(
+                    cornerZoneSizeDpKey,
+                    TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
                 ).toFloat()
                 excludedPackages = TapLockAppRules.getExcludedPackages(context)
                 coroutineScope.launch {
@@ -552,6 +588,10 @@ fun TapLockScreen() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Text(
+                            stringResource(R.string.edge_zones_subsection_label),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -589,7 +629,7 @@ fun TapLockScreen() {
                             )
                         }
 
-                        if (leftEdgeZoneEnabled || rightEdgeZoneEnabled) {
+                        if (anyEdgeZoneEnabled) {
                             Text(
                                 stringResource(
                                     R.string.edge_zone_width_label,
@@ -661,7 +701,115 @@ fun TapLockScreen() {
                                 interactionSource = edgeBottomOffsetSliderInteraction,
                                 modifier = Modifier.testTag("slider_edge_zone_bottom_offset")
                             )
+                        }
 
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        Text(
+                            stringResource(R.string.corner_zones_label),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(R.string.corner_zones_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.top_left_corner_lock_zone_label))
+                            Switch(
+                                checked = topLeftCornerZoneEnabled,
+                                onCheckedChange = { isChecked ->
+                                    topLeftCornerZoneEnabled = isChecked
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putBoolean(topLeftCornerLockZoneKey, isChecked) }
+                                },
+                                enabled = isAccessibilityEnabled,
+                                modifier = Modifier.testTag("switch_top_left_corner_zone")
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.top_right_corner_lock_zone_label))
+                            Switch(
+                                checked = topRightCornerZoneEnabled,
+                                onCheckedChange = { isChecked ->
+                                    topRightCornerZoneEnabled = isChecked
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putBoolean(topRightCornerLockZoneKey, isChecked) }
+                                },
+                                enabled = isAccessibilityEnabled,
+                                modifier = Modifier.testTag("switch_top_right_corner_zone")
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.bottom_left_corner_lock_zone_label))
+                            Switch(
+                                checked = bottomLeftCornerZoneEnabled,
+                                onCheckedChange = { isChecked ->
+                                    bottomLeftCornerZoneEnabled = isChecked
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putBoolean(bottomLeftCornerLockZoneKey, isChecked) }
+                                },
+                                enabled = isAccessibilityEnabled,
+                                modifier = Modifier.testTag("switch_bottom_left_corner_zone")
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.bottom_right_corner_lock_zone_label))
+                            Switch(
+                                checked = bottomRightCornerZoneEnabled,
+                                onCheckedChange = { isChecked ->
+                                    bottomRightCornerZoneEnabled = isChecked
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putBoolean(bottomRightCornerLockZoneKey, isChecked) }
+                                },
+                                enabled = isAccessibilityEnabled,
+                                modifier = Modifier.testTag("switch_bottom_right_corner_zone")
+                            )
+                        }
+
+                        if (anyCornerZoneEnabled) {
+                            Text(
+                                stringResource(
+                                    R.string.corner_zone_size_label,
+                                    cornerZoneSizeDp.toInt()
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = cornerZoneSizeDp,
+                                onValueChange = { cornerZoneSizeDp = it },
+                                onValueChangeFinished = {
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putInt(cornerZoneSizeDpKey, cornerZoneSizeDp.toInt()) }
+                                },
+                                valueRange = TapLockEdgeZones.MIN_CORNER_SIZE_DP.toFloat()..
+                                    TapLockEdgeZones.MAX_CORNER_SIZE_DP.toFloat(),
+                                interactionSource = cornerSizeSliderInteraction,
+                                modifier = Modifier.testTag("slider_corner_zone_size")
+                            )
+                        }
+
+                        if (anyEdgeZoneEnabled || anyCornerZoneEnabled) {
                             Text(
                                 stringResource(R.string.edge_zone_preview_label),
                                 style = MaterialTheme.typography.bodySmall,
@@ -672,7 +820,12 @@ fun TapLockScreen() {
                                 rightEnabled = rightEdgeZoneEnabled,
                                 edgeWidthDp = edgeZoneWidthDp.toInt(),
                                 topOffsetPercent = edgeZoneTopOffsetPercent.toInt(),
-                                bottomOffsetPercent = edgeZoneBottomOffsetPercent.toInt()
+                                bottomOffsetPercent = edgeZoneBottomOffsetPercent.toInt(),
+                                topLeftCornerEnabled = topLeftCornerZoneEnabled,
+                                topRightCornerEnabled = topRightCornerZoneEnabled,
+                                bottomLeftCornerEnabled = bottomLeftCornerZoneEnabled,
+                                bottomRightCornerEnabled = bottomRightCornerZoneEnabled,
+                                cornerSizeDp = cornerZoneSizeDp.toInt()
                             )
                         }
                     }
@@ -1083,13 +1236,18 @@ fun TapLockScreen() {
 
             }
 
-            if (showLiveEdgeZoneOverlay) {
+            if (showLiveZoneOverlay) {
                 EdgeZoneLiveOverlay(
                     leftEnabled = leftEdgeZoneEnabled,
                     rightEnabled = rightEdgeZoneEnabled,
                     edgeWidthDp = edgeZoneWidthDp.toInt(),
                     topOffsetPercent = edgeZoneTopOffsetPercent.toInt(),
-                    bottomOffsetPercent = edgeZoneBottomOffsetPercent.toInt()
+                    bottomOffsetPercent = edgeZoneBottomOffsetPercent.toInt(),
+                    topLeftCornerEnabled = topLeftCornerZoneEnabled,
+                    topRightCornerEnabled = topRightCornerZoneEnabled,
+                    bottomLeftCornerEnabled = bottomLeftCornerZoneEnabled,
+                    bottomRightCornerEnabled = bottomRightCornerZoneEnabled,
+                    cornerSizeDp = cornerZoneSizeDp.toInt()
                 )
             }
         }
@@ -1309,10 +1467,18 @@ private fun EdgeZonePreview(
     rightEnabled: Boolean,
     edgeWidthDp: Int,
     topOffsetPercent: Int,
-    bottomOffsetPercent: Int
+    bottomOffsetPercent: Int,
+    topLeftCornerEnabled: Boolean,
+    topRightCornerEnabled: Boolean,
+    bottomLeftCornerEnabled: Boolean,
+    bottomRightCornerEnabled: Boolean,
+    cornerSizeDp: Int
 ) {
     val previewZoneWidth = (
         6f + (edgeWidthDp.toFloat() / TapLockEdgeZones.MAX_WIDTH_DP.toFloat()) * 18f
+        ).dp
+    val previewCornerSize = (
+        8f + (cornerSizeDp.toFloat() / TapLockEdgeZones.MAX_CORNER_SIZE_DP.toFloat()) * 24f
         ).dp
     val topOffsetFraction = (topOffsetPercent / 100f)
         .coerceIn(
@@ -1349,30 +1515,83 @@ private fun EdgeZonePreview(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = topInset, bottom = bottomInset)
             ) {
-                if (leftEnabled) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topInset, bottom = bottomInset)
+                ) {
+                    if (leftEnabled) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .fillMaxHeight()
+                                .width(previewZoneWidth)
+                                .background(
+                                    zoneColor,
+                                    RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                                )
+                        )
+                    }
+
+                    if (rightEnabled) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .width(previewZoneWidth)
+                                .background(
+                                    zoneColor,
+                                    RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                                )
+                        )
+                    }
+                }
+
+                if (topLeftCornerEnabled) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .fillMaxHeight()
-                            .width(previewZoneWidth)
+                            .align(Alignment.TopStart)
+                            .size(previewCornerSize)
                             .background(
                                 zoneColor,
-                                RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                                RoundedCornerShape(bottomEnd = 12.dp)
                             )
                     )
                 }
 
-                if (rightEnabled) {
+                if (topRightCornerEnabled) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .fillMaxHeight()
-                            .width(previewZoneWidth)
+                            .align(Alignment.TopEnd)
+                            .size(previewCornerSize)
                             .background(
                                 zoneColor,
-                                RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                                RoundedCornerShape(bottomStart = 12.dp)
+                            )
+                    )
+                }
+
+                if (bottomLeftCornerEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .size(previewCornerSize)
+                            .background(
+                                zoneColor,
+                                RoundedCornerShape(topEnd = 12.dp)
+                            )
+                    )
+                }
+
+                if (bottomRightCornerEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(previewCornerSize)
+                            .background(
+                                zoneColor,
+                                RoundedCornerShape(topStart = 12.dp)
                             )
                     )
                 }
@@ -1387,7 +1606,12 @@ private fun EdgeZoneLiveOverlay(
     rightEnabled: Boolean,
     edgeWidthDp: Int,
     topOffsetPercent: Int,
-    bottomOffsetPercent: Int
+    bottomOffsetPercent: Int,
+    topLeftCornerEnabled: Boolean,
+    topRightCornerEnabled: Boolean,
+    bottomLeftCornerEnabled: Boolean,
+    bottomRightCornerEnabled: Boolean,
+    cornerSizeDp: Int
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -1408,40 +1632,113 @@ private fun EdgeZoneLiveOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = topInset, bottom = bottomInset)
         ) {
-            if (leftEnabled) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topInset, bottom = bottomInset)
+            ) {
+                if (leftEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxHeight()
+                            .width(edgeWidthDp.dp)
+                            .background(
+                                zoneColor,
+                                RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = zoneBorderColor,
+                                shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+                            )
+                    )
+                }
+
+                if (rightEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .width(edgeWidthDp.dp)
+                            .background(
+                                zoneColor,
+                                RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = zoneBorderColor,
+                                shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                            )
+                    )
+                }
+            }
+
+            if (topLeftCornerEnabled) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .fillMaxHeight()
-                        .width(edgeWidthDp.dp)
+                        .align(Alignment.TopStart)
+                        .size(cornerSizeDp.dp)
                         .background(
                             zoneColor,
-                            RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+                            RoundedCornerShape(bottomEnd = 20.dp)
                         )
                         .border(
                             width = 1.dp,
                             color = zoneBorderColor,
-                            shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+                            shape = RoundedCornerShape(bottomEnd = 20.dp)
                         )
                 )
             }
 
-            if (rightEnabled) {
+            if (topRightCornerEnabled) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .fillMaxHeight()
-                        .width(edgeWidthDp.dp)
+                        .align(Alignment.TopEnd)
+                        .size(cornerSizeDp.dp)
                         .background(
                             zoneColor,
-                            RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                            RoundedCornerShape(bottomStart = 20.dp)
                         )
                         .border(
                             width = 1.dp,
                             color = zoneBorderColor,
-                            shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                            shape = RoundedCornerShape(bottomStart = 20.dp)
+                        )
+                )
+            }
+
+            if (bottomLeftCornerEnabled) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .size(cornerSizeDp.dp)
+                        .background(
+                            zoneColor,
+                            RoundedCornerShape(topEnd = 20.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = zoneBorderColor,
+                            shape = RoundedCornerShape(topEnd = 20.dp)
+                        )
+                )
+            }
+
+            if (bottomRightCornerEnabled) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(cornerSizeDp.dp)
+                        .background(
+                            zoneColor,
+                            RoundedCornerShape(topStart = 20.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = zoneBorderColor,
+                            shape = RoundedCornerShape(topStart = 20.dp)
                         )
                 )
             }

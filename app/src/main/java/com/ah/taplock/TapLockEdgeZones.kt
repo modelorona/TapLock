@@ -7,6 +7,13 @@ enum class EdgeZoneSide {
     RIGHT
 }
 
+enum class CornerZonePosition {
+    TOP_LEFT,
+    TOP_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_RIGHT
+}
+
 data class EdgeZoneFrame(
     val widthPx: Int,
     val heightPx: Int,
@@ -18,6 +25,10 @@ object TapLockEdgeZones {
     const val DEFAULT_WIDTH_DP = 18
     const val MIN_WIDTH_DP = 12
     const val MAX_WIDTH_DP = 96
+
+    const val DEFAULT_CORNER_SIZE_DP = 48
+    const val MIN_CORNER_SIZE_DP = 24
+    const val MAX_CORNER_SIZE_DP = 120
 
     const val DEFAULT_COVERAGE_PERCENT = 45
     const val MIN_COVERAGE_PERCENT = 20
@@ -60,6 +71,38 @@ object TapLockEdgeZones {
         return EdgeZoneFrame(
             widthPx = widthPx,
             heightPx = heightPx,
+            x = x,
+            y = y
+        )
+    }
+
+    fun buildCornerFrame(
+        screenWidthPx: Int,
+        screenHeightPx: Int,
+        sizeDp: Int,
+        density: Float,
+        position: CornerZonePosition
+    ): EdgeZoneFrame {
+        val clampedSizeDp = sizeDp.coerceIn(MIN_CORNER_SIZE_DP, MAX_CORNER_SIZE_DP)
+        val sizePx = (clampedSizeDp * density).roundToInt().coerceAtLeast(1)
+        val x = when (position) {
+            CornerZonePosition.TOP_LEFT,
+            CornerZonePosition.BOTTOM_LEFT -> 0
+
+            CornerZonePosition.TOP_RIGHT,
+            CornerZonePosition.BOTTOM_RIGHT -> (screenWidthPx - sizePx).coerceAtLeast(0)
+        }
+        val y = when (position) {
+            CornerZonePosition.TOP_LEFT,
+            CornerZonePosition.TOP_RIGHT -> 0
+
+            CornerZonePosition.BOTTOM_LEFT,
+            CornerZonePosition.BOTTOM_RIGHT -> (screenHeightPx - sizePx).coerceAtLeast(0)
+        }
+
+        return EdgeZoneFrame(
+            widthPx = sizePx,
+            heightPx = sizePx,
             x = x,
             y = y
         )
