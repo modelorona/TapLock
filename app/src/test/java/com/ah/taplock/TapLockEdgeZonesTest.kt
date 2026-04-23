@@ -48,7 +48,7 @@ class TapLockEdgeZonesTest {
         val frame = TapLockEdgeZones.buildFrame(
             screenWidthPx = 1080,
             screenHeightPx = 2400,
-            widthDp = 99,
+            widthDp = 999,
             density = 3f,
             topOffsetPercent = 99,
             bottomOffsetPercent = 99,

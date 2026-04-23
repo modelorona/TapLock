@@ -17,7 +17,7 @@ data class EdgeZoneFrame(
 object TapLockEdgeZones {
     const val DEFAULT_WIDTH_DP = 18
     const val MIN_WIDTH_DP = 12
-    const val MAX_WIDTH_DP = 36
+    const val MAX_WIDTH_DP = 96
 
     const val DEFAULT_COVERAGE_PERCENT = 45
     const val MIN_COVERAGE_PERCENT = 20
