@@ -20,18 +20,21 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -134,6 +137,12 @@ fun TapLockScreen() {
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
     val statusBarDoubleTapKey = stringResource(R.string.status_bar_double_tap)
     val lockScreenDoubleTapKey = stringResource(R.string.lock_screen_double_tap)
+    val leftEdgeLockZoneKey = stringResource(R.string.left_edge_lock_zone)
+    val rightEdgeLockZoneKey = stringResource(R.string.right_edge_lock_zone)
+    val edgeZoneWidthDpKey = stringResource(R.string.edge_zone_width_dp)
+    val edgeZoneCoveragePercentKey = stringResource(R.string.edge_zone_coverage_percent)
+    val edgeZoneTopOffsetPercentKey = stringResource(R.string.edge_zone_top_offset_percent)
+    val edgeZoneBottomOffsetPercentKey = stringResource(R.string.edge_zone_bottom_offset_percent)
     val customIconUpdatedMsg = stringResource(R.string.custom_icon_updated)
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
     val hasSeenInfoKey = stringResource(R.string.has_seen_info)
@@ -160,12 +169,23 @@ fun TapLockScreen() {
     var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
     var statusBarDoubleTap by remember { mutableStateOf(false) }
     var lockScreenDoubleTap by remember { mutableStateOf(false) }
+    var leftEdgeZoneEnabled by remember { mutableStateOf(false) }
+    var rightEdgeZoneEnabled by remember { mutableStateOf(false) }
     var infoExpanded by remember { mutableStateOf(true) }
     var showOnboarding by remember { mutableStateOf(false) }
     var onboardingStep by remember { mutableIntStateOf(0) }
     var lockDelayMs by remember { mutableIntStateOf(0) }
     var lockCount by remember { mutableIntStateOf(0) }
     var lockZonePercent by remember { mutableFloatStateOf(66f) }
+    var edgeZoneWidthDp by remember {
+        mutableFloatStateOf(TapLockEdgeZones.DEFAULT_WIDTH_DP.toFloat())
+    }
+    var edgeZoneTopOffsetPercent by remember {
+        mutableFloatStateOf(TapLockEdgeZones.DEFAULT_TOP_OFFSET_PERCENT.toFloat())
+    }
+    var edgeZoneBottomOffsetPercent by remember {
+        mutableFloatStateOf(TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT.toFloat())
+    }
     var floatingButtonEnabled by remember { mutableStateOf(false) }
     var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     var excludedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -182,11 +202,31 @@ fun TapLockScreen() {
         vibrationPattern = VibrationHelper.fromPrefs(context)
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
         lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
+        leftEdgeZoneEnabled = prefs.getBoolean(leftEdgeLockZoneKey, false)
+        rightEdgeZoneEnabled = prefs.getBoolean(rightEdgeLockZoneKey, false)
         infoExpanded = !prefs.getBoolean(hasSeenInfoKey, false)
         showOnboarding = !prefs.getBoolean(hasCompletedOnboardingKey, false)
         lockDelayMs = prefs.getInt(lockDelayMsKey, 0)
         lockCount = prefs.getInt(lockCountKey, 0)
         lockZonePercent = prefs.getInt(lockZonePercentKey, 66).toFloat()
+        edgeZoneWidthDp = prefs.getInt(
+            edgeZoneWidthDpKey,
+            TapLockEdgeZones.DEFAULT_WIDTH_DP
+        ).toFloat()
+        val legacyEdgeCoveragePercent = prefs.getInt(
+            edgeZoneCoveragePercentKey,
+            TapLockEdgeZones.DEFAULT_COVERAGE_PERCENT
+        )
+        val (fallbackTopOffsetPercent, fallbackBottomOffsetPercent) =
+            TapLockEdgeZones.deriveOffsetsFromCoverage(legacyEdgeCoveragePercent)
+        edgeZoneTopOffsetPercent = prefs.getInt(
+            edgeZoneTopOffsetPercentKey,
+            fallbackTopOffsetPercent
+        ).toFloat()
+        edgeZoneBottomOffsetPercent = prefs.getInt(
+            edgeZoneBottomOffsetPercentKey,
+            fallbackBottomOffsetPercent
+        ).toFloat()
         floatingButtonEnabled = prefs.getBoolean(floatingButtonKey, false)
         excludedPackages = TapLockAppRules.getExcludedPackages(context)
         // Load custom icon for preview
@@ -275,6 +315,26 @@ fun TapLockScreen() {
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
+                leftEdgeZoneEnabled = prefs.getBoolean(leftEdgeLockZoneKey, false)
+                rightEdgeZoneEnabled = prefs.getBoolean(rightEdgeLockZoneKey, false)
+                edgeZoneWidthDp = prefs.getInt(
+                    edgeZoneWidthDpKey,
+                    TapLockEdgeZones.DEFAULT_WIDTH_DP
+                ).toFloat()
+                val legacyEdgeCoveragePercent = prefs.getInt(
+                    edgeZoneCoveragePercentKey,
+                    TapLockEdgeZones.DEFAULT_COVERAGE_PERCENT
+                )
+                val (fallbackTopOffsetPercent, fallbackBottomOffsetPercent) =
+                    TapLockEdgeZones.deriveOffsetsFromCoverage(legacyEdgeCoveragePercent)
+                edgeZoneTopOffsetPercent = prefs.getInt(
+                    edgeZoneTopOffsetPercentKey,
+                    fallbackTopOffsetPercent
+                ).toFloat()
+                edgeZoneBottomOffsetPercent = prefs.getInt(
+                    edgeZoneBottomOffsetPercentKey,
+                    fallbackBottomOffsetPercent
+                ).toFloat()
                 excludedPackages = TapLockAppRules.getExcludedPackages(context)
                 coroutineScope.launch {
                     isLoadingApps = true
@@ -455,6 +515,144 @@ fun TapLockScreen() {
                         steps = 13,
                         modifier = Modifier.testTag("slider_timeout")
                     )
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(stringResource(R.string.edge_zones_label))
+                        Text(
+                            stringResource(R.string.edge_zones_description),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Text(
+                            stringResource(R.string.edge_zones_portrait_only),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.left_edge_lock_zone_label))
+                            Switch(
+                                checked = leftEdgeZoneEnabled,
+                                onCheckedChange = { isChecked ->
+                                    leftEdgeZoneEnabled = isChecked
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putBoolean(leftEdgeLockZoneKey, isChecked) }
+                                },
+                                enabled = isAccessibilityEnabled,
+                                modifier = Modifier.testTag("switch_left_edge_zone")
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(stringResource(R.string.right_edge_lock_zone_label))
+                            Switch(
+                                checked = rightEdgeZoneEnabled,
+                                onCheckedChange = { isChecked ->
+                                    rightEdgeZoneEnabled = isChecked
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putBoolean(rightEdgeLockZoneKey, isChecked) }
+                                },
+                                enabled = isAccessibilityEnabled,
+                                modifier = Modifier.testTag("switch_right_edge_zone")
+                            )
+                        }
+
+                        if (leftEdgeZoneEnabled || rightEdgeZoneEnabled) {
+                            Text(
+                                stringResource(
+                                    R.string.edge_zone_width_label,
+                                    edgeZoneWidthDp.toInt()
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = edgeZoneWidthDp,
+                                onValueChange = { edgeZoneWidthDp = it },
+                                onValueChangeFinished = {
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit {
+                                            putInt(edgeZoneWidthDpKey, edgeZoneWidthDp.toInt())
+                                        }
+                                },
+                                valueRange = TapLockEdgeZones.MIN_WIDTH_DP.toFloat()..
+                                    TapLockEdgeZones.MAX_WIDTH_DP.toFloat(),
+                                modifier = Modifier.testTag("slider_edge_zone_width")
+                            )
+
+                            Text(
+                                stringResource(
+                                    R.string.edge_zone_top_offset_label,
+                                    edgeZoneTopOffsetPercent.toInt()
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = edgeZoneTopOffsetPercent,
+                                onValueChange = { edgeZoneTopOffsetPercent = it },
+                                onValueChangeFinished = {
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit {
+                                            putInt(
+                                                edgeZoneTopOffsetPercentKey,
+                                                edgeZoneTopOffsetPercent.toInt()
+                                            )
+                                        }
+                                },
+                                valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
+                                    TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
+                                modifier = Modifier.testTag("slider_edge_zone_top_offset")
+                            )
+
+                            Text(
+                                stringResource(
+                                    R.string.edge_zone_bottom_offset_label,
+                                    edgeZoneBottomOffsetPercent.toInt()
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = edgeZoneBottomOffsetPercent,
+                                onValueChange = { edgeZoneBottomOffsetPercent = it },
+                                onValueChangeFinished = {
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit {
+                                            putInt(
+                                                edgeZoneBottomOffsetPercentKey,
+                                                edgeZoneBottomOffsetPercent.toInt()
+                                            )
+                                        }
+                                },
+                                valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
+                                    TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
+                                modifier = Modifier.testTag("slider_edge_zone_bottom_offset")
+                            )
+
+                            Text(
+                                stringResource(R.string.edge_zone_preview_label),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            EdgeZonePreview(
+                                leftEnabled = leftEdgeZoneEnabled,
+                                rightEnabled = rightEdgeZoneEnabled,
+                                edgeWidthDp = edgeZoneWidthDp.toInt(),
+                                topOffsetPercent = edgeZoneTopOffsetPercent.toInt(),
+                                bottomOffsetPercent = edgeZoneBottomOffsetPercent.toInt()
+                            )
+                        }
+                    }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -1068,6 +1266,84 @@ fun AppExclusionDialog(
             }
         }
     )
+}
+
+@Composable
+private fun EdgeZonePreview(
+    leftEnabled: Boolean,
+    rightEnabled: Boolean,
+    edgeWidthDp: Int,
+    topOffsetPercent: Int,
+    bottomOffsetPercent: Int
+) {
+    val previewZoneWidth = (
+        6f + (edgeWidthDp.toFloat() / TapLockEdgeZones.MAX_WIDTH_DP.toFloat()) * 18f
+        ).dp
+    val topOffsetFraction = (topOffsetPercent / 100f)
+        .coerceIn(
+            TapLockEdgeZones.MIN_OFFSET_PERCENT / 100f,
+            TapLockEdgeZones.MAX_OFFSET_PERCENT / 100f
+        )
+    val bottomOffsetFraction = (bottomOffsetPercent / 100f)
+        .coerceIn(
+            TapLockEdgeZones.MIN_OFFSET_PERCENT / 100f,
+            TapLockEdgeZones.MAX_OFFSET_PERCENT / 100f
+        )
+    val zoneColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+    val frameColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
+    val shape = RoundedCornerShape(24.dp)
+    val previewInnerHeight = 188.dp
+    val topInset = previewInnerHeight * topOffsetFraction
+    val bottomInset = previewInnerHeight * bottomOffsetFraction
+
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .width(120.dp)
+                .height(220.dp)
+                .border(1.dp, frameColor, shape)
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f),
+                    shape
+                )
+                .padding(vertical = 16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topInset, bottom = bottomInset)
+            ) {
+                if (leftEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxHeight()
+                            .width(previewZoneWidth)
+                            .background(
+                                zoneColor,
+                                RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                            )
+                    )
+                }
+
+                if (rightEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight()
+                            .width(previewZoneWidth)
+                            .background(
+                                zoneColor,
+                                RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                            )
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

@@ -19,6 +19,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.core.content.edit
+import kotlin.math.abs
 
 class TapLockAccessibilityService : AccessibilityService() {
 
@@ -30,7 +31,11 @@ class TapLockAccessibilityService : AccessibilityService() {
     }
 
     private var statusBarOverlay: View? = null
+    private var leftEdgeOverlay: View? = null
+    private var rightEdgeOverlay: View? = null
     private val doubleTapDetector = DoubleTapDetector()
+    private val leftEdgeDoubleTapDetector = DoubleTapDetector()
+    private val rightEdgeDoubleTapDetector = DoubleTapDetector()
     private var prefListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
     private var isOnLockScreen = false
     private var currentForegroundPackage: String? = null
@@ -53,6 +58,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
         removeStatusBarOverlay()
+        removeEdgeOverlays()
         unregisterPrefListener()
         return super.onUnbind(intent)
     }
@@ -60,6 +66,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         instance = null
         removeStatusBarOverlay()
+        removeEdgeOverlays()
         unregisterPrefListener()
         super.onDestroy()
     }
@@ -111,6 +118,11 @@ class TapLockAccessibilityService : AccessibilityService() {
             when (key) {
                 getString(R.string.status_bar_double_tap),
                 getString(R.string.lock_screen_double_tap) -> updateOverlay()
+                getString(R.string.left_edge_lock_zone),
+                getString(R.string.right_edge_lock_zone),
+                getString(R.string.edge_zone_width_dp),
+                getString(R.string.edge_zone_top_offset_percent),
+                getString(R.string.edge_zone_bottom_offset_percent) -> updateEdgeOverlays()
                 getString(R.string.excluded_apps) -> updateOverlayTouchability()
                 getString(R.string.lock_zone_percent) -> {
                     if (statusBarOverlay != null) updateOverlayForLockScreen()
@@ -128,6 +140,11 @@ class TapLockAccessibilityService : AccessibilityService() {
     }
 
     private fun updateOverlay() {
+        updateStatusBarOverlay()
+        updateEdgeOverlays()
+    }
+
+    private fun updateStatusBarOverlay() {
         val prefs = getPrefs()
         val statusBarEnabled = prefs.getBoolean(getString(R.string.status_bar_double_tap), false)
         val lockScreenEnabled = prefs.getBoolean(getString(R.string.lock_screen_double_tap), false)
@@ -219,9 +236,159 @@ class TapLockAccessibilityService : AccessibilityService() {
         Log.d(TAG, "addStatusBarOverlay: added, height=${statusBarHeight}px")
     }
 
+    private fun updateEdgeOverlays() {
+        val prefs = getPrefs()
+        val leftEnabled = prefs.getBoolean(getString(R.string.left_edge_lock_zone), false)
+        val rightEnabled = prefs.getBoolean(getString(R.string.right_edge_lock_zone), false)
+        val canShowEdgeZones = shouldShowEdgeZones()
+
+        if (leftEnabled && canShowEdgeZones) {
+            if (leftEdgeOverlay == null) addEdgeOverlay(EdgeZoneSide.LEFT)
+            updateEdgeOverlayLayout(EdgeZoneSide.LEFT)
+        } else {
+            removeEdgeOverlay(EdgeZoneSide.LEFT)
+        }
+
+        if (rightEnabled && canShowEdgeZones) {
+            if (rightEdgeOverlay == null) addEdgeOverlay(EdgeZoneSide.RIGHT)
+            updateEdgeOverlayLayout(EdgeZoneSide.RIGHT)
+        } else {
+            removeEdgeOverlay(EdgeZoneSide.RIGHT)
+        }
+
+        updateEdgeOverlayTouchability()
+    }
+
+    private fun addEdgeOverlay(side: EdgeZoneSide) {
+        if (getEdgeOverlay(side) != null) {
+            return
+        }
+
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+        val detector = getEdgeDetector(side)
+
+        var downTimeMs = 0L
+        var downX = 0f
+        var downY = 0f
+        var gestureHandled = false
+
+        val overlay = View(this).apply {
+            setOnTouchListener { v, event ->
+                when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        downTimeMs = System.currentTimeMillis()
+                        downX = event.rawX
+                        downY = event.rawY
+                        gestureHandled = false
+                    }
+
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!gestureHandled) {
+                            val dx = event.rawX - downX
+                            val dy = event.rawY - downY
+                            if (shouldTriggerBackSwipe(side, dx, dy, touchSlop)) {
+                                gestureHandled = true
+                                detector.reset()
+                                performGlobalAction(GLOBAL_ACTION_BACK)
+                            } else if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
+                                gestureHandled = true
+                                detector.reset()
+                            }
+                        }
+                    }
+
+                    MotionEvent.ACTION_UP -> {
+                        if (!gestureHandled) {
+                            handleEdgeTap(side, downTimeMs)
+                        }
+                        v.performClick()
+                    }
+
+                    MotionEvent.ACTION_CANCEL -> {
+                        detector.reset()
+                    }
+                }
+                true
+            }
+        }
+
+        val frame = createEdgeFrame(side)
+        val params = WindowManager.LayoutParams(
+            frame.widthPx,
+            frame.heightPx,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            createOverlayBaseFlags(),
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = frame.x
+            y = frame.y
+            layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
+
+        wm.addView(overlay, params)
+        setEdgeOverlay(side, overlay)
+        Log.d(TAG, "edgeOverlay: added side=$side, frame=$frame")
+    }
+
+    private fun updateEdgeOverlayLayout(side: EdgeZoneSide) {
+        val overlay = getEdgeOverlay(side) ?: return
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val params = overlay.layoutParams as WindowManager.LayoutParams
+        val frame = createEdgeFrame(side)
+
+        if (
+            params.width != frame.widthPx ||
+            params.height != frame.heightPx ||
+            params.x != frame.x ||
+            params.y != frame.y
+        ) {
+            params.width = frame.widthPx
+            params.height = frame.heightPx
+            params.x = frame.x
+            params.y = frame.y
+            wm.updateViewLayout(overlay, params)
+            getEdgeDetector(side).reset()
+            Log.d(TAG, "edgeOverlay: updated side=$side, frame=$frame")
+        }
+    }
+
+    private fun updateEdgeOverlayTouchability() {
+        val touchDisabled = isCurrentAppExcluded() || isTapLockForeground()
+        updateEdgeOverlayTouchability(EdgeZoneSide.LEFT, touchDisabled)
+        updateEdgeOverlayTouchability(EdgeZoneSide.RIGHT, touchDisabled)
+    }
+
+    private fun updateEdgeOverlayTouchability(side: EdgeZoneSide, touchDisabled: Boolean) {
+        val overlay = getEdgeOverlay(side) ?: return
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val params = overlay.layoutParams as WindowManager.LayoutParams
+        val newFlags = if (touchDisabled) {
+            createOverlayBaseFlags() or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        } else {
+            createOverlayBaseFlags()
+        }
+
+        if (params.flags != newFlags) {
+            params.flags = newFlags
+            wm.updateViewLayout(overlay, params)
+            if (touchDisabled) {
+                getEdgeDetector(side).reset()
+            }
+            Log.d(TAG, "edgeOverlay: touchDisabled=$touchDisabled, side=$side")
+        }
+    }
+
     private fun updateOverlayTouchability() {
-        val overlay = statusBarOverlay ?: return
         refreshForegroundPackage()
+        updateStatusBarOverlayTouchability()
+        updateEdgeOverlayTouchability()
+    }
+
+    private fun updateStatusBarOverlayTouchability() {
+        val overlay = statusBarOverlay ?: return
         val prefs = getPrefs()
         val statusBarEnabled = prefs.getBoolean(getString(R.string.status_bar_double_tap), false)
         val lockScreenEnabled = prefs.getBoolean(getString(R.string.lock_screen_double_tap), false)
@@ -240,8 +407,7 @@ class TapLockAccessibilityService : AccessibilityService() {
 
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val params = overlay.layoutParams as WindowManager.LayoutParams
-        val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+        val baseFlags = createOverlayBaseFlags()
         val newFlags = if (shouldDisableTouch) {
             baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         } else {
@@ -256,11 +422,19 @@ class TapLockAccessibilityService : AccessibilityService() {
     }
 
     private fun updateOverlayForLockScreen() {
-        val overlay = statusBarOverlay ?: return
         val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
         val locked = km.isKeyguardLocked
         val wasOnLockScreen = isOnLockScreen
         isOnLockScreen = locked
+
+        val overlay = statusBarOverlay
+        if (overlay == null) {
+            if (locked != wasOnLockScreen) {
+                updateOverlayTouchability()
+            }
+            updateEdgeOverlays()
+            return
+        }
 
         val prefs = getPrefs()
         val lockScreenEnabled = prefs.getBoolean(
@@ -291,6 +465,8 @@ class TapLockAccessibilityService : AccessibilityService() {
         if (locked != wasOnLockScreen) {
             updateOverlayTouchability()
         }
+
+        updateEdgeOverlays()
     }
 
     private fun getLockScreenOverlayHeight(): Int {
@@ -376,6 +552,19 @@ class TapLockAccessibilityService : AccessibilityService() {
         doubleTapDetector.reset()
     }
 
+    private fun removeEdgeOverlays() {
+        removeEdgeOverlay(EdgeZoneSide.LEFT)
+        removeEdgeOverlay(EdgeZoneSide.RIGHT)
+    }
+
+    private fun removeEdgeOverlay(side: EdgeZoneSide) {
+        val overlay = getEdgeOverlay(side) ?: return
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        wm.removeView(overlay)
+        setEdgeOverlay(side, null)
+        getEdgeDetector(side).reset()
+    }
+
     private fun handleStatusBarTap(tapTimeMs: Long) {
         refreshForegroundPackage()
         if (isCurrentAppExcluded()) {
@@ -384,23 +573,46 @@ class TapLockAccessibilityService : AccessibilityService() {
             return
         }
 
+        maybeTriggerLock(doubleTapDetector, tapTimeMs, "statusBar")
+    }
+
+    private fun handleEdgeTap(side: EdgeZoneSide, tapTimeMs: Long) {
+        refreshForegroundPackage()
+        val detector = getEdgeDetector(side)
+        if (isCurrentAppExcluded() || isTapLockForeground()) {
+            detector.reset()
+            Log.d(TAG, "edgeOverlay: ignoring tap because edge interaction is suppressed, side=$side")
+            return
+        }
+
+        maybeTriggerLock(detector, tapTimeMs, "edge:$side")
+    }
+
+    private fun maybeTriggerLock(
+        detector: DoubleTapDetector,
+        tapTimeMs: Long,
+        source: String
+    ) {
         val prefs = getPrefs()
         val timeout = prefs.getInt(getString(R.string.double_tap_timeout), 300)
-        Log.d(TAG, "touch: tap registered, timeout=${timeout}ms")
+        Log.d(TAG, "$source: tap registered, timeout=${timeout}ms")
 
-        if (doubleTapDetector.onTap(timeout, tapTimeMs)) {
-            Log.d(TAG, "touch: DOUBLE TAP detected, locking")
+        if (detector.onTap(timeout, tapTimeMs)) {
+            Log.d(TAG, "$source: DOUBLE TAP detected, locking")
+            performConfiguredLock(prefs)
+        }
+    }
 
-            val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
-            val lockDelay = prefs.getInt(getString(R.string.lock_delay_ms), 0).toLong()
-            if (vibrateOnLock) {
-                VibrationHelper.vibrate(this, VibrationHelper.fromPrefs(this))
-                Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, 100 + lockDelay)
-            } else if (lockDelay > 0) {
-                Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, lockDelay)
-            } else {
-                lockScreen()
-            }
+    private fun performConfiguredLock(prefs: SharedPreferences) {
+        val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
+        val lockDelay = prefs.getInt(getString(R.string.lock_delay_ms), 0).toLong()
+        if (vibrateOnLock) {
+            VibrationHelper.vibrate(this, VibrationHelper.fromPrefs(this))
+            Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, 100 + lockDelay)
+        } else if (lockDelay > 0) {
+            Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, lockDelay)
+        } else {
+            lockScreen()
         }
     }
 
@@ -415,6 +627,97 @@ class TapLockAccessibilityService : AccessibilityService() {
         val fallback = (24 * resources.displayMetrics.density).toInt()
         Log.w(TAG, "getStatusBarHeight: insets.top was 0, using fallback ${fallback}px")
         return fallback
+    }
+
+    private fun createOverlayBaseFlags(): Int =
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+
+    private fun createEdgeFrame(side: EdgeZoneSide): EdgeZoneFrame {
+        val prefs = getPrefs()
+        val widthDp = prefs.getInt(
+            getString(R.string.edge_zone_width_dp),
+            TapLockEdgeZones.DEFAULT_WIDTH_DP
+        )
+        val legacyCoveragePercent = prefs.getInt(
+            getString(R.string.edge_zone_coverage_percent),
+            TapLockEdgeZones.DEFAULT_COVERAGE_PERCENT
+        )
+        val (fallbackTopOffsetPercent, fallbackBottomOffsetPercent) =
+            TapLockEdgeZones.deriveOffsetsFromCoverage(legacyCoveragePercent)
+        val topOffsetPercent = prefs.getInt(
+            getString(R.string.edge_zone_top_offset_percent),
+            fallbackTopOffsetPercent
+        )
+        val bottomOffsetPercent = prefs.getInt(
+            getString(R.string.edge_zone_bottom_offset_percent),
+            fallbackBottomOffsetPercent
+        )
+        val bounds = (getSystemService(WINDOW_SERVICE) as WindowManager).currentWindowMetrics.bounds
+        return TapLockEdgeZones.buildFrame(
+            screenWidthPx = bounds.width(),
+            screenHeightPx = bounds.height(),
+            widthDp = widthDp,
+            density = resources.displayMetrics.density,
+            topOffsetPercent = topOffsetPercent,
+            bottomOffsetPercent = bottomOffsetPercent,
+            side = side
+        )
+    }
+
+    private fun shouldShowEdgeZones(): Boolean {
+        val bounds = (getSystemService(WINDOW_SERVICE) as WindowManager).currentWindowMetrics.bounds
+        return TapLockEdgeZones.isPortrait(bounds.width(), bounds.height()) && !isDeviceLocked()
+    }
+
+    private fun isDeviceLocked(): Boolean =
+        (getSystemService(KEYGUARD_SERVICE) as KeyguardManager).isKeyguardLocked
+
+    private fun getEdgeOverlay(side: EdgeZoneSide): View? = when (side) {
+        EdgeZoneSide.LEFT -> leftEdgeOverlay
+        EdgeZoneSide.RIGHT -> rightEdgeOverlay
+    }
+
+    private fun setEdgeOverlay(side: EdgeZoneSide, overlay: View?) {
+        when (side) {
+            EdgeZoneSide.LEFT -> leftEdgeOverlay = overlay
+            EdgeZoneSide.RIGHT -> rightEdgeOverlay = overlay
+        }
+    }
+
+    private fun getEdgeDetector(side: EdgeZoneSide): DoubleTapDetector = when (side) {
+        EdgeZoneSide.LEFT -> leftEdgeDoubleTapDetector
+        EdgeZoneSide.RIGHT -> rightEdgeDoubleTapDetector
+    }
+
+    private fun shouldTriggerBackSwipe(
+        side: EdgeZoneSide,
+        dx: Float,
+        dy: Float,
+        touchSlop: Int
+    ): Boolean {
+        val isHorizontalSwipe = abs(dx) > abs(dy)
+        if (!isHorizontalSwipe) return false
+
+        return when (side) {
+            EdgeZoneSide.LEFT -> dx > touchSlop
+            EdgeZoneSide.RIGHT -> dx < -touchSlop
+        }
+    }
+
+    private fun isTapLockForeground(): Boolean {
+        if (rootInActiveWindow?.packageName?.toString() == packageName) {
+            return true
+        }
+
+        return windows
+            .asSequence()
+            .filter { window ->
+                window.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
+                    (window.isActive || window.isFocused)
+            }
+            .mapNotNull { window -> window.root?.packageName?.toString() }
+            .any { foregroundPackage -> foregroundPackage == packageName }
     }
 
     private fun isCurrentAppExcluded(): Boolean =

@@ -2,6 +2,7 @@ package com.ah.taplock
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasSetTextAction
@@ -9,6 +10,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -65,6 +67,17 @@ class SettingsUiTest {
     @Test
     fun defaultValues_statusBarDoubleTapIsOff() {
         composeTestRule.onNodeWithTag("switch_status_bar")
+            .performScrollTo()
+            .assertIsOff()
+    }
+
+    @Test
+    fun defaultValues_edgeZonesAreOff() {
+        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+            .performScrollTo()
+            .assertIsOff()
+
+        composeTestRule.onNodeWithTag("switch_right_edge_zone")
             .performScrollTo()
             .assertIsOff()
     }
@@ -129,6 +142,72 @@ class SettingsUiTest {
             .assertIsOn()
 
         assertTrue(getPrefs().getBoolean(context.getString(R.string.status_bar_double_tap), false))
+    }
+
+    @Test
+    fun toggleLeftEdgeZone_updatesPref() {
+        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+            .assertIsOn()
+
+        assertTrue(getPrefs().getBoolean(context.getString(R.string.left_edge_lock_zone), false))
+    }
+
+    @Test
+    fun toggleRightEdgeZone_updatesPref() {
+        composeTestRule.onNodeWithTag("switch_right_edge_zone")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("switch_right_edge_zone")
+            .assertIsOn()
+
+        assertTrue(getPrefs().getBoolean(context.getString(R.string.right_edge_lock_zone), false))
+    }
+
+    @Test
+    fun updateTopEdgeOffset_updatesPref() {
+        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("slider_edge_zone_top_offset")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                assertTrue(setProgress(12f))
+            }
+
+        assertEquals(
+            12,
+            getPrefs().getInt(
+                context.getString(R.string.edge_zone_top_offset_percent),
+                TapLockEdgeZones.DEFAULT_TOP_OFFSET_PERCENT
+            )
+        )
+    }
+
+    @Test
+    fun updateBottomEdgeOffset_updatesPref() {
+        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("slider_edge_zone_bottom_offset")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                assertTrue(setProgress(15f))
+            }
+
+        assertEquals(
+            15,
+            getPrefs().getInt(
+                context.getString(R.string.edge_zone_bottom_offset_percent),
+                TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT
+            )
+        )
     }
 
     @Test
