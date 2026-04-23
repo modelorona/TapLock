@@ -24,8 +24,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
@@ -193,6 +196,19 @@ fun TapLockScreen() {
     var showAppExclusionDialog by remember { mutableStateOf(false) }
     var isLoadingApps by remember { mutableStateOf(true) }
     var appSearchQuery by remember { mutableStateOf("") }
+    val edgeWidthSliderInteraction = remember { MutableInteractionSource() }
+    val edgeTopOffsetSliderInteraction = remember { MutableInteractionSource() }
+    val edgeBottomOffsetSliderInteraction = remember { MutableInteractionSource() }
+    val isEdgeWidthSliderDragged by edgeWidthSliderInteraction.collectIsDraggedAsState()
+    val isEdgeTopOffsetSliderDragged by edgeTopOffsetSliderInteraction.collectIsDraggedAsState()
+    val isEdgeBottomOffsetSliderDragged by edgeBottomOffsetSliderInteraction.collectIsDraggedAsState()
+    val showLiveEdgeZoneOverlay = (
+        leftEdgeZoneEnabled || rightEdgeZoneEnabled
+        ) && (
+        isEdgeWidthSliderDragged ||
+            isEdgeTopOffsetSliderDragged ||
+            isEdgeBottomOffsetSliderDragged
+        )
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -363,15 +379,19 @@ fun TapLockScreen() {
             )
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(innerPadding)
-                .padding(8.dp),
-            horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             // Collapsible info section
             InfoSection(
                 expanded = infoExpanded,
@@ -588,6 +608,7 @@ fun TapLockScreen() {
                                 },
                                 valueRange = TapLockEdgeZones.MIN_WIDTH_DP.toFloat()..
                                     TapLockEdgeZones.MAX_WIDTH_DP.toFloat(),
+                                interactionSource = edgeWidthSliderInteraction,
                                 modifier = Modifier.testTag("slider_edge_zone_width")
                             )
 
@@ -612,6 +633,7 @@ fun TapLockScreen() {
                                 },
                                 valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
                                     TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
+                                interactionSource = edgeTopOffsetSliderInteraction,
                                 modifier = Modifier.testTag("slider_edge_zone_top_offset")
                             )
 
@@ -636,6 +658,7 @@ fun TapLockScreen() {
                                 },
                                 valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
                                     TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
+                                interactionSource = edgeBottomOffsetSliderInteraction,
                                 modifier = Modifier.testTag("slider_edge_zone_bottom_offset")
                             )
 
@@ -1057,6 +1080,18 @@ fun TapLockScreen() {
                     )
                 }
             }
+
+            }
+
+            if (showLiveEdgeZoneOverlay) {
+                EdgeZoneLiveOverlay(
+                    leftEnabled = leftEdgeZoneEnabled,
+                    rightEnabled = rightEdgeZoneEnabled,
+                    edgeWidthDp = edgeZoneWidthDp.toInt(),
+                    topOffsetPercent = edgeZoneTopOffsetPercent.toInt(),
+                    bottomOffsetPercent = edgeZoneBottomOffsetPercent.toInt()
+                )
+            }
         }
 
         if (showAppExclusionDialog) {
@@ -1341,6 +1376,74 @@ private fun EdgeZonePreview(
                             )
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EdgeZoneLiveOverlay(
+    leftEnabled: Boolean,
+    rightEnabled: Boolean,
+    edgeWidthDp: Int,
+    topOffsetPercent: Int,
+    bottomOffsetPercent: Int
+) {
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("edge_zone_live_overlay")
+    ) {
+        val topInset = maxHeight * (topOffsetPercent / 100f)
+        val bottomInset = maxHeight * (bottomOffsetPercent / 100f)
+        val zoneColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        val zoneBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.06f))
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = topInset, bottom = bottomInset)
+        ) {
+            if (leftEnabled) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxHeight()
+                        .width(edgeWidthDp.dp)
+                        .background(
+                            zoneColor,
+                            RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = zoneBorderColor,
+                            shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
+                        )
+                )
+            }
+
+            if (rightEnabled) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .width(edgeWidthDp.dp)
+                        .background(
+                            zoneColor,
+                            RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = zoneBorderColor,
+                            shape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                        )
+                )
             }
         }
     }
