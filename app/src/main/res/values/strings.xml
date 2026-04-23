@@ -100,7 +100,9 @@
     <string name="lock_zone_label">Lock screen tap zone: %d%%</string>
     <string name="edge_zones_label">Screen Edge And Corner Lock Zones</string>
     <string name="edge_zones_description">Double-tap enabled screen edges or corners to lock. Swiping inward from an enabled screen edge still goes Back.</string>
-    <string name="edge_zones_portrait_only">Portrait only in this version.</string>
+    <string name="edge_zones_portrait_only">Portrait and landscape are configured separately. Landscape starts off.</string>
+    <string name="zone_orientation_portrait">Portrait</string>
+    <string name="zone_orientation_landscape">Landscape</string>
     <string name="edge_zones_subsection_label">Screen Edges</string>
     <string name="left_edge_lock_zone_label">Left Screen Edge</string>
     <string name="right_edge_lock_zone_label">Right Screen Edge</string>

@@ -7,6 +7,11 @@ enum class EdgeZoneSide {
     RIGHT
 }
 
+enum class ZoneOrientation {
+    PORTRAIT,
+    LANDSCAPE
+}
+
 enum class CornerZonePosition {
     TOP_LEFT,
     TOP_RIGHT,
@@ -41,6 +46,20 @@ object TapLockEdgeZones {
 
     fun isPortrait(screenWidthPx: Int, screenHeightPx: Int): Boolean =
         screenHeightPx >= screenWidthPx
+
+    fun orientationForBounds(screenWidthPx: Int, screenHeightPx: Int): ZoneOrientation =
+        if (isPortrait(screenWidthPx, screenHeightPx)) {
+            ZoneOrientation.PORTRAIT
+        } else {
+            ZoneOrientation.LANDSCAPE
+        }
+
+    fun prefKey(baseKey: String, orientation: ZoneOrientation): String =
+        if (orientation == ZoneOrientation.PORTRAIT) {
+            baseKey
+        } else {
+            "${baseKey}_landscape"
+        }
 
     fun buildFrame(
         screenWidthPx: Int,
