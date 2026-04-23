@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
@@ -100,6 +102,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -165,6 +168,11 @@ fun TapLockScreen() {
     var lockZonePercent by remember { mutableFloatStateOf(66f) }
     var floatingButtonEnabled by remember { mutableStateOf(false) }
     var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    var excludedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var availableApps by remember { mutableStateOf<List<TapLockAppInfo>>(emptyList()) }
+    var showAppExclusionDialog by remember { mutableStateOf(false) }
+    var isLoadingApps by remember { mutableStateOf(true) }
+    var appSearchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -180,11 +188,18 @@ fun TapLockScreen() {
         lockCount = prefs.getInt(lockCountKey, 0)
         lockZonePercent = prefs.getInt(lockZonePercentKey, 66).toFloat()
         floatingButtonEnabled = prefs.getBoolean(floatingButtonKey, false)
+        excludedPackages = TapLockAppRules.getExcludedPackages(context)
         // Load custom icon for preview
         val iconFile = File(context.filesDir, "custom_widget_icon.png")
         widgetIconBitmap = if (iconFile.exists()) {
             BitmapFactory.decodeFile(iconFile.absolutePath)?.asImageBitmap()
         } else null
+
+        isLoadingApps = true
+        availableApps = withContext(Dispatchers.IO) {
+            TapLockAppRules.loadLaunchableApps(context)
+        }
+        isLoadingApps = false
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -234,6 +249,23 @@ fun TapLockScreen() {
         }
     }
 
+    val excludedAppLabels = excludedPackages
+        .map { packageName ->
+            availableApps.firstOrNull { it.packageName == packageName }?.label
+                ?: TapLockAppRules.resolveAppLabel(context, packageName)
+        }
+        .sortedBy { it.lowercase(Locale.getDefault()) }
+
+    val excludedAppsSummary = when {
+        excludedAppLabels.isEmpty() -> stringResource(R.string.app_exclusions_none)
+        excludedAppLabels.size > 3 -> stringResource(
+            R.string.app_exclusions_summary_more,
+            excludedAppLabels.take(3).joinToString(", "),
+            excludedAppLabels.size - 3
+        )
+        else -> excludedAppLabels.joinToString(", ")
+    }
+
     DisposableEffect(Unit) {
         val lifecycleOwner = context as ComponentActivity
         val observer = LifecycleEventObserver { _, event ->
@@ -243,6 +275,14 @@ fun TapLockScreen() {
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
+                excludedPackages = TapLockAppRules.getExcludedPackages(context)
+                coroutineScope.launch {
+                    isLoadingApps = true
+                    availableApps = withContext(Dispatchers.IO) {
+                        TapLockAppRules.loadLaunchableApps(context)
+                    }
+                    isLoadingApps = false
+                }
                 // If user just granted overlay permission, start the service
                 if (floatingButtonEnabled && !Settings.canDrawOverlays(context)) {
                     floatingButtonEnabled = false
@@ -709,6 +749,48 @@ fun TapLockScreen() {
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(stringResource(R.string.app_exclusions_label))
+                        Text(
+                            stringResource(R.string.app_exclusions_description),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Button(
+                            onClick = {
+                                appSearchQuery = ""
+                                showAppExclusionDialog = true
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("button_app_exclusions")
+                        ) {
+                            Text(stringResource(R.string.app_exclusions_button))
+                        }
+                        Text(
+                            if (excludedPackages.isEmpty()) {
+                                excludedAppsSummary
+                            } else {
+                                buildString {
+                                    append(
+                                        context.resources.getQuantityString(
+                                            R.plurals.app_exclusions_count,
+                                            excludedPackages.size,
+                                            excludedPackages.size
+                                        )
+                                    )
+                                    append('\n')
+                                    append(excludedAppsSummary)
+                                }
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
                     // Lock delay dropdown
                     val lockDelayKey = stringResource(R.string.lock_delay_ms)
                     val delayOptions = listOf(
@@ -743,7 +825,7 @@ fun TapLockScreen() {
                                     .size(width = 120.dp, height = 52.dp),
                                 textStyle = MaterialTheme.typography.bodyMedium
                             )
-                            ExposedDropdownMenu(
+                            DropdownMenu(
                                 expanded = delayDropdownExpanded,
                                 onDismissRequest = { delayDropdownExpanded = false }
                             ) {
@@ -777,6 +859,30 @@ fun TapLockScreen() {
                     )
                 }
             }
+        }
+
+        if (showAppExclusionDialog) {
+            AppExclusionDialog(
+                apps = availableApps,
+                excludedPackages = excludedPackages,
+                searchQuery = appSearchQuery,
+                isLoading = isLoadingApps,
+                onSearchQueryChange = { appSearchQuery = it },
+                onTogglePackage = { packageName ->
+                    val updatedPackages = excludedPackages.toMutableSet().apply {
+                        if (!add(packageName)) {
+                            remove(packageName)
+                        }
+                    }.toSet()
+                    excludedPackages = updatedPackages
+                    TapLockAppRules.setExcludedPackages(context, updatedPackages)
+                },
+                onClearAll = {
+                    excludedPackages = emptySet()
+                    TapLockAppRules.setExcludedPackages(context, emptySet())
+                },
+                onDismiss = { showAppExclusionDialog = false }
+            )
         }
 
         if (showDialog) {
@@ -858,6 +964,143 @@ fun TapLockScreen() {
                         }
                     }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+fun AppExclusionDialog(
+    apps: List<TapLockAppInfo>,
+    excludedPackages: Set<String>,
+    searchQuery: String,
+    isLoading: Boolean,
+    onSearchQueryChange: (String) -> Unit,
+    onTogglePackage: (String) -> Unit,
+    onClearAll: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val filteredApps = if (searchQuery.isBlank()) {
+        apps
+    } else {
+        apps.filter { app ->
+            app.label.contains(searchQuery, ignoreCase = true) ||
+                app.packageName.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.app_exclusions_dialog_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    label = { Text(stringResource(R.string.app_exclusions_search_label)) },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("field_app_exclusions_search")
+                )
+
+                when {
+                    isLoading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(320.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                stringResource(R.string.app_exclusions_loading),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
+                    filteredApps.isEmpty() -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(320.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                stringResource(R.string.app_exclusions_no_results),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
+                    else -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(320.dp)
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            filteredApps.forEach { app ->
+                                AppExclusionRow(
+                                    app = app,
+                                    checked = excludedPackages.contains(app.packageName),
+                                    onToggle = { onTogglePackage(app.packageName) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.app_exclusions_done))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onClearAll,
+                enabled = excludedPackages.isNotEmpty(),
+                modifier = Modifier.testTag("button_app_exclusions_clear")
+            ) {
+                Text(stringResource(R.string.app_exclusions_clear))
+            }
+        }
+    )
+}
+
+@Composable
+private fun AppExclusionRow(
+    app: TapLockAppInfo,
+    checked: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onToggle() }
+            .padding(vertical = 4.dp)
+            .testTag("app_exclusion_row_${app.packageName}"),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { onToggle() }
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = app.label,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = app.packageName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

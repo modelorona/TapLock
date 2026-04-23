@@ -33,13 +33,17 @@ class TapLockAccessibilityService : AccessibilityService() {
     private val doubleTapDetector = DoubleTapDetector()
     private var prefListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
     private var isOnLockScreen = false
+    private var currentForegroundPackage: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        currentForegroundPackage = TapLockAppRules.getForegroundPackage(this)
         serviceInfo?.let { info ->
             info.flags = info.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-            info.eventTypes = info.eventTypes or AccessibilityEvent.TYPE_WINDOWS_CHANGED
+            info.eventTypes = info.eventTypes or
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED or
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
             serviceInfo = info
         }
         updateOverlay()
@@ -74,8 +78,22 @@ class TapLockAccessibilityService : AccessibilityService() {
         performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
     }
 
+    fun isForegroundAppExcludedNow(): Boolean {
+        refreshForegroundPackage()
+        return isCurrentAppExcluded()
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+        event ?: return
+
+        if (refreshForegroundPackage(event.packageName?.toString())) {
+            updateOverlayTouchability()
+        }
+
+        if (
+            event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+        ) {
             updateOverlayTouchability()
             updateOverlayForLockScreen()
         }
@@ -93,6 +111,7 @@ class TapLockAccessibilityService : AccessibilityService() {
             when (key) {
                 getString(R.string.status_bar_double_tap),
                 getString(R.string.lock_screen_double_tap) -> updateOverlay()
+                getString(R.string.excluded_apps) -> updateOverlayTouchability()
                 getString(R.string.lock_zone_percent) -> {
                     if (statusBarOverlay != null) updateOverlayForLockScreen()
                 }
@@ -202,14 +221,18 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun updateOverlayTouchability() {
         val overlay = statusBarOverlay ?: return
+        refreshForegroundPackage()
         val prefs = getPrefs()
         val statusBarEnabled = prefs.getBoolean(getString(R.string.status_bar_double_tap), false)
         val lockScreenEnabled = prefs.getBoolean(getString(R.string.lock_screen_double_tap), false)
+        val appExcluded = isCurrentAppExcluded()
 
         // Disable touch when: in a fullscreen app (no status bar) and not on lock screen,
-        // or when only lock screen feature is enabled and we're not on the lock screen
+        // when the current app is excluded, or when only lock screen feature is enabled
+        // and we're not on the lock screen.
         val shouldDisableTouch = when {
             isOnLockScreen && lockScreenEnabled -> false
+            appExcluded -> true
             !isStatusBarVisible() -> true
             statusBarEnabled -> false
             else -> true // lock screen only, but not on lock screen
@@ -354,6 +377,13 @@ class TapLockAccessibilityService : AccessibilityService() {
     }
 
     private fun handleStatusBarTap(tapTimeMs: Long) {
+        refreshForegroundPackage()
+        if (isCurrentAppExcluded()) {
+            doubleTapDetector.reset()
+            Log.d(TAG, "touch: ignoring tap because current app is excluded")
+            return
+        }
+
         val prefs = getPrefs()
         val timeout = prefs.getInt(getString(R.string.double_tap_timeout), 300)
         Log.d(TAG, "touch: tap registered, timeout=${timeout}ms")
@@ -385,5 +415,42 @@ class TapLockAccessibilityService : AccessibilityService() {
         val fallback = (24 * resources.displayMetrics.density).toInt()
         Log.w(TAG, "getStatusBarHeight: insets.top was 0, using fallback ${fallback}px")
         return fallback
+    }
+
+    private fun isCurrentAppExcluded(): Boolean =
+        !isOnLockScreen && TapLockAppRules.isPackageExcluded(this, currentForegroundPackage)
+
+    private fun refreshForegroundPackage(eventPackage: String? = null): Boolean {
+        val previousPackage = currentForegroundPackage
+        val resolvedPackage = resolveForegroundPackage(eventPackage)
+
+        if (resolvedPackage != null) {
+            TapLockAppRules.updateForegroundPackage(this, resolvedPackage)
+        }
+
+        currentForegroundPackage = TapLockAppRules.getForegroundPackage(this)
+        return currentForegroundPackage != previousPackage
+    }
+
+    private fun resolveForegroundPackage(eventPackage: String? = null): String? {
+        val activeRootPackage = TapLockAppRules.sanitizeTrackedPackage(
+            this,
+            rootInActiveWindow?.packageName?.toString()
+        )
+        if (activeRootPackage != null) return activeRootPackage
+
+        val windowPackage = windows
+            .asSequence()
+            .filter { window ->
+                window.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
+                    (window.isActive || window.isFocused)
+            }
+            .mapNotNull { window -> window.root?.packageName?.toString() }
+            .mapNotNull { packageName -> TapLockAppRules.sanitizeTrackedPackage(this, packageName) }
+            .firstOrNull()
+        if (windowPackage != null) return windowPackage
+
+        return TapLockAppRules.sanitizeTrackedPackage(this, eventPackage)
+            ?: currentForegroundPackage
     }
 }

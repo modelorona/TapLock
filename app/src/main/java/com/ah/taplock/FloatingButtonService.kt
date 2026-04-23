@@ -14,6 +14,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import kotlin.math.abs
 
@@ -128,8 +129,20 @@ class FloatingButtonService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!isDragging) {
-                        // Tap — lock the screen
                         val service = TapLockAccessibilityService.instance
+                        val isExcluded = service?.isForegroundAppExcludedNow()
+                            ?: TapLockAppRules.isCurrentAppExcluded(this@FloatingButtonService)
+                        if (isExcluded) {
+                            Toast.makeText(
+                                this@FloatingButtonService,
+                                getString(R.string.app_exclusions_disabled_toast),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            v.performClick()
+                            return@setOnTouchListener true
+                        }
+
+                        // Tap — lock the screen
                         if (service != null) {
                             val prefs = getSharedPreferences(
                                 getString(R.string.shared_pref_name), MODE_PRIVATE

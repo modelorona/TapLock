@@ -21,13 +21,20 @@ class TapLockTileService : TileService() {
         super.onClick()
 
         val prefs = getSharedPreferences(getString(R.string.shared_pref_name), MODE_PRIVATE)
+        val service = TapLockAccessibilityService.instance
+        val isExcluded = service?.isForegroundAppExcludedNow()
+            ?: TapLockAppRules.isCurrentAppExcluded(this)
+        if (isExcluded) {
+            Toast.makeText(this, getString(R.string.app_exclusions_disabled_toast), Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
         val lockDelay = prefs.getInt(getString(R.string.lock_delay_ms), 0).toLong()
         if (vibrateOnLock) {
             VibrationHelper.vibrate(this, VibrationHelper.fromPrefs(this))
         }
 
-        val service = TapLockAccessibilityService.instance
         if (service != null) {
             val totalDelay = (if (vibrateOnLock) 100L else 0L) + lockDelay
             if (totalDelay > 0) {

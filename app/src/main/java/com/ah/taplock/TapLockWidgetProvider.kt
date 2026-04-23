@@ -81,6 +81,18 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         val timeout = prefs.getInt(context.getString(R.string.double_tap_timeout), 300)
 
         if (doubleTapDetector.onTap(timeout)) {
+            val service = TapLockAccessibilityService.instance
+            val isExcluded = service?.isForegroundAppExcludedNow()
+                ?: TapLockAppRules.isCurrentAppExcluded(context)
+            if (isExcluded) {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.app_exclusions_disabled_toast),
+                    Toast.LENGTH_SHORT
+                ).show()
+                return
+            }
+
             val vibrateOnLock = prefs.getBoolean(context.getString(R.string.vibrate_on_lock), true)
             val lockDelay = prefs.getInt(context.getString(R.string.lock_delay_ms), 0).toLong()
             if (vibrateOnLock) {
@@ -88,7 +100,6 @@ class TapLockWidgetProvider : AppWidgetProvider() {
             }
 
             val lockRunnable = Runnable {
-                val service = TapLockAccessibilityService.instance
                 if (service != null) {
                     Log.d("TapLock", "Widget: Using direct instance - fast path")
                     service.lockScreen()
