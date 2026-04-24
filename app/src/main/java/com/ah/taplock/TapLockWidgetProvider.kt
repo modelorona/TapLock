@@ -3,6 +3,7 @@ package com.ah.taplock
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
@@ -19,6 +20,23 @@ class TapLockWidgetProvider : AppWidgetProvider() {
     companion object {
         private const val ACTION_WIDGET_TAP = "com.ah.taplock.widget.TAP"
         private val doubleTapDetector = DoubleTapDetector()
+
+        fun getWidgetCount(context: Context): Int =
+            AppWidgetManager.getInstance(context).getAppWidgetIds(
+                ComponentName(context, TapLockWidgetProvider::class.java)
+            ).size
+
+        fun refreshAll(context: Context) {
+            val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(
+                ComponentName(context, TapLockWidgetProvider::class.java)
+            )
+            if (ids.isEmpty()) return
+            val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
+                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+            }
+            context.sendBroadcast(intent)
+        }
     }
 
     override fun onUpdate(
@@ -54,12 +72,16 @@ class TapLockWidgetProvider : AppWidgetProvider() {
     ) {
         val prefs = context.getSharedPreferences(context.getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
         val showIcon = prefs.getBoolean(context.getString(R.string.show_widget_icon), false)
+        val widgetStyle = TapLockWidgetStyle.fromStored(
+            prefs.getString(context.getString(R.string.widget_style), null)
+        )
 
         val views = RemoteViews(context.packageName, R.layout.widget_layout).apply {
             setOnClickPendingIntent(
                 R.id.widget_container,
                 getPendingSelfIntent(context, appWidgetId)
             )
+            setInt(R.id.widget_container, "setBackgroundResource", widgetStyle.backgroundResId)
             if (showIcon) {
                 val customIconFile = File(context.filesDir, "custom_widget_icon.png")
                 if (customIconFile.exists()) {
@@ -85,11 +107,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
             val isExcluded = service?.isForegroundAppExcludedNow()
                 ?: TapLockAppRules.isCurrentAppExcluded(context)
             if (isExcluded) {
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.app_exclusions_disabled_toast),
-                    Toast.LENGTH_SHORT
-                ).show()
+                TapLockFeedback.showAppExcluded(context)
                 return
             }
 
@@ -103,12 +121,14 @@ class TapLockWidgetProvider : AppWidgetProvider() {
                 if (service != null) {
                     Log.d("TapLock", "Widget: Using direct instance - fast path")
                     service.lockScreen()
-                } else {
+                } else if (isAccessibilityEnabled(context)) {
                     Log.d("TapLock", "Widget: Instance null - using slow startService path")
                     Toast.makeText(context, "Locking screen...", Toast.LENGTH_SHORT).show()
                     val accessibilityIntent = Intent(context, TapLockAccessibilityService::class.java)
                     accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
                     context.startService(accessibilityIntent)
+                } else {
+                    TapLockFeedback.showAccessibilityRequired(context)
                 }
             }
 

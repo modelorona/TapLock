@@ -3,8 +3,9 @@
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/transparent"
-    android:foreground="@drawable/widget_ripple">
+    android:background="@drawable/widget_bg_transparent"
+    android:foreground="@drawable/widget_ripple"
+    android:padding="8dp">
 
     <ImageView
         android:id="@+id/widget_icon"

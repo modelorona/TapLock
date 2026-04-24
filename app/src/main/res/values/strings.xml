@@ -5,6 +5,13 @@
     <string name="double_tap_timeout">double_tap_timeout</string>
     <string name="show_widget_icon">show_widget_icon</string>
     <string name="show_widget_icon_label">Show Widget Icon</string>
+    <string name="widget_style">widget_style</string>
+    <string name="widget_style_label">Widget Style</string>
+    <string name="widget_style_description">Pick a clearer home screen look without changing how the widget works.</string>
+    <string name="widget_style_transparent">Transparent</string>
+    <string name="widget_style_glass">Glass</string>
+    <string name="widget_style_solid">Solid</string>
+    <string name="widget_style_outline">Outline</string>
     <string name="select_icon">Select Icon</string>
     <string name="reset_icon">Reset Default</string>
     <string name="custom_icon_updated">Custom icon updated</string>
@@ -95,7 +102,26 @@
     <string name="tap_test_success">Double-tap detected!</string>
 
     <string name="add_widget_button">Add Widget to Home Screen</string>
+    <string name="add_another_widget_button">Add Another Widget</string>
     <string name="widget_preview_label">Widget Preview</string>
+    <string name="widget_pin_not_supported_toast">Your launcher doesn\'t support pinning widgets from apps. Add TapLock from the home screen widget picker.</string>
+    <string name="widget_status_none">No home screen widget added yet.</string>
+    <plurals name="widget_count_label">
+        <item quantity="one">%d widget on your home screen</item>
+        <item quantity="other">%d widgets on your home screen</item>
+    </plurals>
+    <string name="quick_settings_tile_added">quick_settings_tile_added</string>
+    <string name="quick_settings_tile_label">Quick Settings Tile</string>
+    <string name="quick_settings_tile_description">Add TapLock to Quick Settings for a native one-tap lock action.</string>
+    <string name="quick_settings_tile_button">Add Tile</string>
+    <string name="quick_settings_tile_added_status">Added to Quick Settings</string>
+    <string name="quick_settings_tile_missing_status">Not added yet</string>
+    <string name="quick_settings_tile_manual_hint">Android 12 and lower: add TapLock from the Quick Settings edit screen.</string>
+    <string name="quick_settings_tile_added_toast">TapLock tile added to Quick Settings</string>
+    <string name="quick_settings_tile_already_added_toast">TapLock tile is already in Quick Settings</string>
+    <string name="quick_settings_tile_not_added_toast">TapLock tile was not added</string>
+    <string name="quick_settings_tile_failed_toast">Couldn\'t add the Quick Settings tile right now</string>
+    <string name="quick_settings_tile_manual_toast">Add TapLock from the Quick Settings edit screen on this Android version.</string>
     <string name="lock_zone_percent">lock_zone_percent</string>
     <string name="lock_zone_label">Lock screen tap zone: %d%%</string>
     <string name="edge_zones_label">Screen Edge And Corner Lock Zones</string>
@@ -135,9 +161,18 @@
     <string name="shortcut_lock_short">Lock</string>
 
     <string name="floating_button_enabled">floating_button_enabled</string>
+    <string name="floating_button_size_dp">floating_button_size_dp</string>
+    <string name="floating_button_opacity_percent">floating_button_opacity_percent</string>
+    <string name="floating_button_position_x">floating_button_position_x</string>
+    <string name="floating_button_position_y">floating_button_position_y</string>
     <string name="floating_button_label">Floating Lock Button</string>
     <string name="floating_button_description">Show a floating button over other apps to lock with a single tap.</string>
+    <string name="floating_button_size_label">Button size: %ddp</string>
+    <string name="floating_button_opacity_label">Button opacity: %d%%</string>
+    <string name="floating_button_preview_label">Floating button preview</string>
+    <string name="floating_button_hint">Drag it to reposition. It snaps to the nearest screen edge.</string>
     <string name="floating_button_notification_channel">Floating Button</string>
     <string name="floating_button_notification_title">TapLock floating button active</string>
     <string name="floating_button_notification_body">Tap to open settings</string>
+    <string name="overlay_permission_required_toast">Overlay permission is required for the floating button</string>
 </resources>

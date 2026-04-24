@@ -39,15 +39,18 @@ class SettingsUiTest {
     private fun getPrefs(): SharedPreferences =
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
 
-    @Before
-    fun setup() {
-        getPrefs().edit().clear().commit()
-
+    private fun setScreenContent() {
         composeTestRule.setContent {
             TapLockTheme {
                 TapLockScreen()
             }
         }
+    }
+
+    @Before
+    fun setup() {
+        getPrefs().edit().clear().commit()
+        setScreenContent()
     }
 
     @Test
@@ -272,5 +275,61 @@ class SettingsUiTest {
             .performClick()
 
         assertEquals(500, getPrefs().getInt(context.getString(R.string.double_tap_timeout), 0))
+    }
+
+    @Test
+    fun selectWidgetStyle_updatesPref() {
+        composeTestRule.onNodeWithTag("chip_widget_style_glass")
+            .performScrollTo()
+            .performClick()
+
+        assertEquals(
+            TapLockWidgetStyle.GLASS.name,
+            getPrefs().getString(context.getString(R.string.widget_style), null)
+        )
+    }
+
+    @Test
+    fun floatingButtonSliders_updatePrefs() {
+        getPrefs().edit()
+            .putBoolean(context.getString(R.string.floating_button_enabled), true)
+            .putInt(
+                context.getString(R.string.floating_button_size_dp),
+                TapLockFloatingButtonConfig.DEFAULT_SIZE_DP
+            )
+            .putInt(
+                context.getString(R.string.floating_button_opacity_percent),
+                TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT
+            )
+            .commit()
+
+        setScreenContent()
+
+        composeTestRule.onNodeWithTag("slider_floating_button_size")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                assertTrue(setProgress(72f))
+            }
+
+        composeTestRule.onNodeWithTag("slider_floating_button_opacity")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                assertTrue(setProgress(65f))
+            }
+
+        assertEquals(
+            72,
+            getPrefs().getInt(
+                context.getString(R.string.floating_button_size_dp),
+                TapLockFloatingButtonConfig.DEFAULT_SIZE_DP
+            )
+        )
+        assertEquals(
+            65,
+            getPrefs().getInt(
+                context.getString(R.string.floating_button_opacity_percent),
+                TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT
+            )
+        )
     }
 }

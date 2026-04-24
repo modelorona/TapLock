@@ -9,11 +9,24 @@ import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.widget.Toast
+import androidx.core.content.edit
 
 class TapLockTileService : TileService() {
 
+    override fun onTileAdded() {
+        super.onTileAdded()
+        persistTileAdded(true)
+        updateTileState()
+    }
+
+    override fun onTileRemoved() {
+        persistTileAdded(false)
+        super.onTileRemoved()
+    }
+
     override fun onStartListening() {
         super.onStartListening()
+        persistTileAdded(true)
         updateTileState()
     }
 
@@ -25,7 +38,7 @@ class TapLockTileService : TileService() {
         val isExcluded = service?.isForegroundAppExcludedNow()
             ?: TapLockAppRules.isCurrentAppExcluded(this)
         if (isExcluded) {
-            Toast.makeText(this, getString(R.string.app_exclusions_disabled_toast), Toast.LENGTH_SHORT).show()
+            TapLockFeedback.showAppExcluded(this)
             return
         }
 
@@ -52,7 +65,7 @@ class TapLockTileService : TileService() {
                 accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
                 startService(accessibilityIntent)
             } else {
-                Toast.makeText(this, getString(R.string.accessibility_permission_required), Toast.LENGTH_LONG).show()
+                TapLockFeedback.showAccessibilityRequired(this)
                 val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
@@ -85,5 +98,10 @@ class TapLockTileService : TileService() {
 
             tile.updateTile()
         }
+    }
+
+    private fun persistTileAdded(isAdded: Boolean) {
+        getSharedPreferences(getString(R.string.shared_pref_name), MODE_PRIVATE)
+            .edit { putBoolean(getString(R.string.quick_settings_tile_added), isAdded) }
     }
 }

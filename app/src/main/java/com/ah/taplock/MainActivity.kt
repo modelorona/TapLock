@@ -1,11 +1,14 @@
 package com.ah.taplock
 
+import android.app.StatusBarManager
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.Icon
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -24,6 +27,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +43,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -79,6 +84,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -136,6 +142,7 @@ fun TapLockScreen() {
     val sharedPrefName = stringResource(R.string.shared_pref_name)
     val doubleTapTimeoutKey = stringResource(R.string.double_tap_timeout)
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
+    val widgetStyleKey = stringResource(R.string.widget_style)
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
     val statusBarDoubleTapKey = stringResource(R.string.status_bar_double_tap)
     val lockScreenDoubleTapKey = stringResource(R.string.lock_screen_double_tap)
@@ -157,7 +164,11 @@ fun TapLockScreen() {
     val lockDelayMsKey = stringResource(R.string.lock_delay_ms)
     val lockCountKey = stringResource(R.string.lock_count)
     val lockZonePercentKey = stringResource(R.string.lock_zone_percent)
+    val quickSettingsTileAddedKey = stringResource(R.string.quick_settings_tile_added)
+    val tileLabel = stringResource(R.string.tile_label)
     val floatingButtonKey = stringResource(R.string.floating_button_enabled)
+    val floatingButtonSizeDpKey = stringResource(R.string.floating_button_size_dp)
+    val floatingButtonOpacityPercentKey = stringResource(R.string.floating_button_opacity_percent)
 
     var showDialog by remember { mutableStateOf(false) }
 
@@ -172,6 +183,7 @@ fun TapLockScreen() {
 
     var timeoutValue by remember { mutableFloatStateOf(300f) }
     var showIcon by remember { mutableStateOf(false) }
+    var widgetStyle by remember { mutableStateOf(TapLockWidgetStyle.default) }
     var vibrateOnLock by remember { mutableStateOf(true) }
     var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
     var statusBarDoubleTap by remember { mutableStateOf(false) }
@@ -201,6 +213,14 @@ fun TapLockScreen() {
         mutableFloatStateOf(TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP.toFloat())
     }
     var floatingButtonEnabled by remember { mutableStateOf(false) }
+    var floatingButtonSizeDp by remember {
+        mutableFloatStateOf(TapLockFloatingButtonConfig.DEFAULT_SIZE_DP.toFloat())
+    }
+    var floatingButtonOpacityPercent by remember {
+        mutableFloatStateOf(TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT.toFloat())
+    }
+    var isTileAdded by remember { mutableStateOf(false) }
+    var widgetCount by remember { mutableIntStateOf(0) }
     var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     var excludedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
     var availableApps by remember { mutableStateOf<List<TapLockAppInfo>>(emptyList()) }
@@ -281,10 +301,61 @@ fun TapLockScreen() {
         cornerZoneSizeDp = value
     }
 
+    fun refreshWidgetCount() {
+        widgetCount = TapLockWidgetProvider.getWidgetCount(context)
+    }
+
+    fun refreshWidgets() {
+        TapLockWidgetProvider.refreshAll(context)
+        refreshWidgetCount()
+    }
+
+    fun restartFloatingButtonServiceIfRunning() {
+        if (!floatingButtonEnabled || !Settings.canDrawOverlays(context)) return
+        val serviceIntent = Intent(context, FloatingButtonService::class.java)
+        context.stopService(serviceIntent)
+        context.startForegroundService(serviceIntent)
+    }
+
+    fun requestQuickSettingsTilePrompt() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            TapLockFeedback.showQuickSettingsAddUnsupported(context)
+            return
+        }
+
+        val statusBarManager = context.getSystemService(StatusBarManager::class.java)
+        if (statusBarManager == null) {
+            TapLockFeedback.showQuickSettingsAddResult(context, -1)
+            return
+        }
+
+        runCatching {
+            statusBarManager.requestAddTileService(
+                ComponentName(context, TapLockTileService::class.java),
+                tileLabel,
+                Icon.createWithResource(context, R.drawable.ic_lock_tile),
+                context.mainExecutor
+            ) { result ->
+                if (
+                    result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED ||
+                    result == StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED
+                ) {
+                    isTileAdded = true
+                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                        .edit { putBoolean(quickSettingsTileAddedKey, true) }
+                }
+                TapLockFeedback.showQuickSettingsAddResult(context, result)
+            }
+        }.onFailure {
+            TapLockFeedback.showQuickSettingsAddResult(context, -1)
+        }
+    }
+
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
         timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toFloat()
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
+        widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
         vibrationPattern = VibrationHelper.fromPrefs(context)
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
@@ -323,7 +394,21 @@ fun TapLockScreen() {
             TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
         ).toFloat()
         floatingButtonEnabled = prefs.getBoolean(floatingButtonKey, false)
+        floatingButtonSizeDp = TapLockFloatingButtonConfig.clampSizeDp(
+            prefs.getInt(
+                floatingButtonSizeDpKey,
+                TapLockFloatingButtonConfig.DEFAULT_SIZE_DP
+            )
+        ).toFloat()
+        floatingButtonOpacityPercent = TapLockFloatingButtonConfig.clampOpacityPercent(
+            prefs.getInt(
+                floatingButtonOpacityPercentKey,
+                TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT
+            )
+        ).toFloat()
+        isTileAdded = prefs.getBoolean(quickSettingsTileAddedKey, false)
         excludedPackages = TapLockAppRules.getExcludedPackages(context)
+        refreshWidgetCount()
         // Load custom icon for preview
         val iconFile = File(context.filesDir, "custom_widget_icon.png")
         widgetIconBitmap = if (iconFile.exists()) {
@@ -358,12 +443,8 @@ fun TapLockScreen() {
                             Toast.makeText(context, customIconUpdatedMsg, Toast.LENGTH_SHORT).show()
                             val newIconFile = File(context.filesDir, "custom_widget_icon.png")
                             widgetIconBitmap = BitmapFactory.decodeFile(newIconFile.absolutePath)?.asImageBitmap()
-                            val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
-                            val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
-                                action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                                putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                            }
-                            context.sendBroadcast(intent)
+                            refreshWidgets()
+                            restartFloatingButtonServiceIfRunning()
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -371,6 +452,17 @@ fun TapLockScreen() {
                 }
             }
         }
+    }
+
+    val defaultAppIconBitmap = remember {
+        val drawable = context.packageManager.getApplicationIcon(context.packageName)
+        val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 128
+        val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 128
+        val bmp = createBitmap(width, height)
+        val canvas = android.graphics.Canvas(bmp)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        bmp.asImageBitmap()
     }
 
     val disclaimerString = buildAnnotatedString {
@@ -410,6 +502,8 @@ fun TapLockScreen() {
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
+                showIcon = prefs.getBoolean(showWidgetIconKey, false)
+                widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
                 leftEdgeZoneEnabled = prefs.getBoolean(leftEdgeLockZoneKey, false)
                 rightEdgeZoneEnabled = prefs.getBoolean(rightEdgeLockZoneKey, false)
                 topLeftCornerZoneEnabled = prefs.getBoolean(topLeftCornerLockZoneKey, false)
@@ -438,7 +532,22 @@ fun TapLockScreen() {
                     cornerZoneSizeDpKey,
                     TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
                 ).toFloat()
+                floatingButtonEnabled = prefs.getBoolean(floatingButtonKey, false)
+                floatingButtonSizeDp = TapLockFloatingButtonConfig.clampSizeDp(
+                    prefs.getInt(
+                        floatingButtonSizeDpKey,
+                        TapLockFloatingButtonConfig.DEFAULT_SIZE_DP
+                    )
+                ).toFloat()
+                floatingButtonOpacityPercent = TapLockFloatingButtonConfig.clampOpacityPercent(
+                    prefs.getInt(
+                        floatingButtonOpacityPercentKey,
+                        TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT
+                    )
+                ).toFloat()
+                isTileAdded = prefs.getBoolean(quickSettingsTileAddedKey, false)
                 excludedPackages = TapLockAppRules.getExcludedPackages(context)
+                refreshWidgetCount()
                 coroutineScope.launch {
                     isLoadingApps = true
                     availableApps = withContext(Dispatchers.IO) {
@@ -450,6 +559,7 @@ fun TapLockScreen() {
                 if (floatingButtonEnabled && !Settings.canDrawOverlays(context)) {
                     floatingButtonEnabled = false
                     prefs.edit { putBoolean(floatingButtonKey, false) }
+                    context.stopService(Intent(context, FloatingButtonService::class.java))
                 }
             }
         }
@@ -951,25 +1061,102 @@ fun TapLockScreen() {
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                    val hasNoWidgets = remember {
-                        AppWidgetManager.getInstance(context).getAppWidgetIds(
-                            ComponentName(context, TapLockWidgetProvider::class.java)
-                        ).isEmpty()
-                    }
-                    if (hasNoWidgets) {
+                    val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
+                    val widgetPinSupported = remember { appWidgetManager.isRequestPinAppWidgetSupported }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            if (widgetCount == 0) {
+                                stringResource(R.string.widget_status_none)
+                            } else {
+                                pluralStringResource(
+                                    R.plurals.widget_count_label,
+                                    widgetCount,
+                                    widgetCount
+                                )
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Button(
                             onClick = {
-                                val appWidgetManager = AppWidgetManager.getInstance(context)
-                                val widgetComponent = ComponentName(context, TapLockWidgetProvider::class.java)
-                                appWidgetManager.requestPinAppWidget(widgetComponent, null, null)
+                                if (!widgetPinSupported) {
+                                    TapLockFeedback.showWidgetPinUnsupported(context)
+                                } else {
+                                    val requested = appWidgetManager.requestPinAppWidget(
+                                        ComponentName(context, TapLockWidgetProvider::class.java),
+                                        null,
+                                        null
+                                    )
+                                    if (!requested) {
+                                        TapLockFeedback.showWidgetPinUnsupported(context)
+                                    }
+                                }
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(stringResource(R.string.add_widget_button))
+                            Text(
+                                if (widgetCount == 0) {
+                                    stringResource(R.string.add_widget_button)
+                                } else {
+                                    stringResource(R.string.add_another_widget_button)
+                                }
+                            )
                         }
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(stringResource(R.string.quick_settings_tile_label))
+                        Text(
+                            stringResource(R.string.quick_settings_tile_description),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                if (isTileAdded) {
+                                    stringResource(R.string.quick_settings_tile_added_status)
+                                } else {
+                                    stringResource(R.string.quick_settings_tile_missing_status)
+                                },
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Button(
+                                onClick = { requestQuickSettingsTilePrompt() },
+                                enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !isTileAdded
+                            ) {
+                                Text(
+                                    if (isTileAdded) {
+                                        stringResource(R.string.enabled)
+                                    } else {
+                                        stringResource(R.string.quick_settings_tile_button)
+                                    }
+                                )
+                            }
+                        }
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                            Text(
+                                stringResource(R.string.quick_settings_tile_manual_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -982,53 +1169,58 @@ fun TapLockScreen() {
                             onCheckedChange = { isChecked ->
                                 showIcon = isChecked
                                 context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit {
-                                        putBoolean(showWidgetIconKey, isChecked)
-                                    }
-
-                                val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
-                                val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
-                                    action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                                }
-                                context.sendBroadcast(intent)
+                                    .edit { putBoolean(showWidgetIconKey, isChecked) }
+                                refreshWidgets()
                             },
                             enabled = isAccessibilityEnabled,
                             modifier = Modifier.testTag("switch_show_icon")
                         )
                     }
 
-                    if (showIcon) {
-                        // Widget icon preview
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(stringResource(R.string.widget_style_label))
+                        Text(
+                            stringResource(R.string.widget_style_description),
+                            style = MaterialTheme.typography.bodySmall
+                        )
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                stringResource(R.string.widget_preview_label),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            val previewBitmap = widgetIconBitmap ?: remember {
-                                val drawable = context.packageManager.getApplicationIcon(context.packageName)
-                                val bmp = createBitmap(
-                                    drawable.intrinsicWidth,
-                                    drawable.intrinsicHeight
+                            TapLockWidgetStyle.entries.forEach { style ->
+                                FilterChip(
+                                    selected = widgetStyle == style,
+                                    onClick = {
+                                        widgetStyle = style
+                                        context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                            .edit { putString(widgetStyleKey, style.name) }
+                                        refreshWidgets()
+                                    },
+                                    label = { Text(stringResource(style.labelResId)) },
+                                    modifier = Modifier.testTag("chip_widget_style_${style.name.lowercase(Locale.US)}")
                                 )
-                                val canvas = android.graphics.Canvas(bmp)
-                                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                                drawable.draw(canvas)
-                                bmp.asImageBitmap()
                             }
-                            Image(
-                                bitmap = previewBitmap,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                contentScale = ContentScale.Fit
-                            )
                         }
+                    }
 
+                    Text(
+                        stringResource(R.string.widget_preview_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    WidgetStylePreview(
+                        style = widgetStyle,
+                        showIcon = showIcon,
+                        iconBitmap = widgetIconBitmap ?: defaultAppIconBitmap,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (showIcon) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1049,12 +1241,8 @@ fun TapLockScreen() {
                                         file.delete()
                                         Toast.makeText(context, customIconResetMsg, Toast.LENGTH_SHORT).show()
                                         widgetIconBitmap = null
-                                        val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(ComponentName(context, TapLockWidgetProvider::class.java))
-                                        val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
-                                            action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                                        }
-                                        context.sendBroadcast(intent)
+                                        refreshWidgets()
+                                        restartFloatingButtonServiceIfRunning()
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
@@ -1157,6 +1345,7 @@ fun TapLockScreen() {
                             checked = floatingButtonEnabled,
                             onCheckedChange = { isChecked ->
                                 if (isChecked && !Settings.canDrawOverlays(context)) {
+                                    TapLockFeedback.showOverlayPermissionRequired(context)
                                     context.startActivity(
                                         Intent(
                                             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -1177,6 +1366,77 @@ fun TapLockScreen() {
                             },
                             enabled = isAccessibilityEnabled,
                             modifier = Modifier.testTag("switch_floating_button")
+                        )
+                    }
+
+                    if (floatingButtonEnabled) {
+                        Text(
+                            stringResource(R.string.floating_button_preview_label),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        FloatingButtonPreview(
+                            iconBitmap = widgetIconBitmap ?: defaultAppIconBitmap,
+                            sizeDp = floatingButtonSizeDp,
+                            opacityPercent = floatingButtonOpacityPercent,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            stringResource(R.string.floating_button_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Text(
+                            stringResource(
+                                R.string.floating_button_size_label,
+                                floatingButtonSizeDp.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = floatingButtonSizeDp,
+                            onValueChange = { floatingButtonSizeDp = it },
+                            onValueChangeFinished = {
+                                val clamped = TapLockFloatingButtonConfig.clampSizeDp(
+                                    floatingButtonSizeDp.toInt()
+                                )
+                                floatingButtonSizeDp = clamped.toFloat()
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit { putInt(floatingButtonSizeDpKey, clamped) }
+                                restartFloatingButtonServiceIfRunning()
+                            },
+                            valueRange = TapLockFloatingButtonConfig.MIN_SIZE_DP.toFloat()..
+                                TapLockFloatingButtonConfig.MAX_SIZE_DP.toFloat(),
+                            steps = TapLockFloatingButtonConfig.MAX_SIZE_DP -
+                                TapLockFloatingButtonConfig.MIN_SIZE_DP - 1,
+                            modifier = Modifier.testTag("slider_floating_button_size")
+                        )
+
+                        Text(
+                            stringResource(
+                                R.string.floating_button_opacity_label,
+                                floatingButtonOpacityPercent.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = floatingButtonOpacityPercent,
+                            onValueChange = { floatingButtonOpacityPercent = it },
+                            onValueChangeFinished = {
+                                val clamped = TapLockFloatingButtonConfig.clampOpacityPercent(
+                                    floatingButtonOpacityPercent.toInt()
+                                )
+                                floatingButtonOpacityPercent = clamped.toFloat()
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit { putInt(floatingButtonOpacityPercentKey, clamped) }
+                                restartFloatingButtonServiceIfRunning()
+                            },
+                            valueRange = TapLockFloatingButtonConfig.MIN_OPACITY_PERCENT.toFloat()..
+                                TapLockFloatingButtonConfig.MAX_OPACITY_PERCENT.toFloat(),
+                            steps = TapLockFloatingButtonConfig.MAX_OPACITY_PERCENT -
+                                TapLockFloatingButtonConfig.MIN_OPACITY_PERCENT - 1,
+                            modifier = Modifier.testTag("slider_floating_button_opacity")
                         )
                     }
 
@@ -1658,6 +1918,96 @@ private fun EdgeZonePreview(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun WidgetStylePreview(
+    style: TapLockWidgetStyle,
+    showIcon: Boolean,
+    iconBitmap: ImageBitmap,
+    modifier: Modifier = Modifier
+) {
+    val shape = RoundedCornerShape(22.dp)
+    val fillColor = when (style) {
+        TapLockWidgetStyle.TRANSPARENT -> Color.Transparent
+        TapLockWidgetStyle.GLASS -> Color(0x660F172A)
+        TapLockWidgetStyle.SOLID -> Color(0xDD111827)
+        TapLockWidgetStyle.OUTLINE -> Color.Transparent
+    }
+    val borderColor = when (style) {
+        TapLockWidgetStyle.GLASS -> Color.White.copy(alpha = 0.18f)
+        TapLockWidgetStyle.OUTLINE -> Color.White.copy(alpha = 0.6f)
+        else -> Color.Transparent
+    }
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .width(172.dp)
+                .height(84.dp)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                    shape = RoundedCornerShape(26.dp)
+                )
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(fillColor, shape)
+                    .then(
+                        if (borderColor != Color.Transparent) {
+                            Modifier.border(1.dp, borderColor, shape)
+                        } else {
+                            Modifier
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (showIcon) {
+                    Image(
+                        bitmap = iconBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.size(42.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FloatingButtonPreview(
+    iconBitmap: ImageBitmap,
+    sizeDp: Float,
+    opacityPercent: Float,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(sizeDp.dp)
+                .alpha(opacityPercent / 100f)
+                .background(Color.Transparent, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                bitmap = iconBitmap,
+                contentDescription = null,
+                modifier = Modifier.size((sizeDp * 0.68f).dp),
+                contentScale = ContentScale.Fit
+            )
         }
     }
 }
