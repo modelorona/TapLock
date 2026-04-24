@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -695,862 +696,868 @@ fun TapLockScreen() {
                 }
             }
 
-            Card(
-                modifier = Modifier.fillMaxWidth()
+            val accessibilityHint = stringResource(R.string.accessibility_required_hint)
+            val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
+            val widgetPinSupported = remember { appWidgetManager.isRequestPinAppWidgetSupported }
+            val lockDelayKey = stringResource(R.string.lock_delay_ms)
+            val delayOptions = listOf(
+                0 to stringResource(R.string.lock_delay_none),
+                500 to stringResource(R.string.lock_delay_half),
+                1000 to stringResource(R.string.lock_delay_one),
+                2000 to stringResource(R.string.lock_delay_two)
+            )
+            var delayDropdownExpanded by remember { mutableStateOf(false) }
+            val selectedDelayLabel = delayOptions.first { it.first == lockDelayMs }.second
+
+            if (!isAccessibilityEnabled) {
+                Text(
+                    accessibilityHint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFFFA000),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+            }
+
+            SettingsSectionCard(
+                title = stringResource(R.string.quick_access_label),
+                description = stringResource(R.string.quick_access_description)
             ) {
+                Text(
+                    stringResource(R.string.widget_section_label),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    if (widgetCount == 0) {
+                        stringResource(R.string.widget_status_none)
+                    } else {
+                        pluralStringResource(
+                            R.plurals.widget_count_label,
+                            widgetCount,
+                            widgetCount
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(
+                    onClick = {
+                        if (!widgetPinSupported) {
+                            TapLockFeedback.showWidgetPinUnsupported(context)
+                        } else {
+                            val requested = appWidgetManager.requestPinAppWidget(
+                                ComponentName(context, TapLockWidgetProvider::class.java),
+                                null,
+                                null
+                            )
+                            if (!requested) {
+                                TapLockFeedback.showWidgetPinUnsupported(context)
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        if (widgetCount == 0) {
+                            stringResource(R.string.add_widget_button)
+                        } else {
+                            stringResource(R.string.add_another_widget_button)
+                        }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.show_widget_icon_label))
+                    Switch(
+                        checked = showIcon,
+                        onCheckedChange = { isChecked ->
+                            showIcon = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putBoolean(showWidgetIconKey, isChecked) }
+                            refreshWidgets()
+                        },
+                        enabled = isAccessibilityEnabled,
+                        modifier = Modifier.testTag("switch_show_icon")
+                    )
+                }
+
                 Column(
-                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 24.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(stringResource(R.string.widget_style_label))
+                    Text(
+                        stringResource(R.string.widget_style_description),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TapLockWidgetStyle.entries.forEach { style ->
+                            FilterChip(
+                                selected = widgetStyle == style,
+                                onClick = {
+                                    widgetStyle = style
+                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                        .edit { putString(widgetStyleKey, style.name) }
+                                    refreshWidgets()
+                                },
+                                label = { Text(stringResource(style.labelResId)) },
+                                modifier = Modifier.testTag(
+                                    "chip_widget_style_${style.name.lowercase(Locale.US)}"
+                                )
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    stringResource(R.string.widget_preview_label),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                WidgetStylePreview(
+                    style = widgetStyle,
+                    showIcon = showIcon,
+                    iconBitmap = widgetIconBitmap ?: defaultAppIconBitmap,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (showIcon) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                launcher.launch(
+                                    PickVisualMediaRequest(
+                                        ActivityResultContracts.PickVisualMedia.ImageOnly
+                                    )
+                                )
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.select_icon))
+                        }
+                        Button(
+                            onClick = {
+                                val file = File(context.filesDir, "custom_widget_icon.png")
+                                if (file.exists()) {
+                                    file.delete()
+                                    Toast.makeText(
+                                        context,
+                                        customIconResetMsg,
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    widgetIconBitmap = null
+                                    refreshWidgets()
+                                    restartFloatingButtonServiceIfRunning()
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(stringResource(R.string.reset_icon))
+                        }
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        stringResource(R.string.settings_label),
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    if (!isAccessibilityEnabled) {
-                        Text(
-                            stringResource(R.string.accessibility_required_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFFFA000)
-                        )
-                    }
-
-                    Text(
-                        stringResource(R.string.slider_timeout_label, timeoutValue.toInt()),
+                        stringResource(R.string.quick_settings_tile_label),
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    Slider(
-                        value = timeoutValue,
-                        onValueChange = { timeoutValue = it },
-                        onValueChangeFinished = {
-                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                .edit {
-                                    putInt(doubleTapTimeoutKey, timeoutValue.toInt())
-                                }
-                        },
-                        valueRange = 100f..800f,
-                        steps = 13,
-                        modifier = Modifier.testTag("slider_timeout")
+                    Text(
+                        stringResource(R.string.quick_settings_tile_description),
+                        style = MaterialTheme.typography.bodySmall
                     )
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(stringResource(R.string.edge_zones_label))
-                        Text(
-                            stringResource(R.string.edge_zones_description),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Text(
-                            stringResource(R.string.edge_zones_portrait_only),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            stringResource(R.string.edge_zones_subsection_label),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(stringResource(R.string.left_edge_lock_zone_label))
-                            Switch(
-                                checked = editableLeftEdgeZoneEnabled,
-                                onCheckedChange = { isChecked ->
-                                    setEditableEdgeEnabled(EdgeZoneSide.LEFT, isChecked)
-                                    saveSelectedZoneBoolean(leftEdgeLockZoneKey, isChecked)
-                                },
-                                enabled = isAccessibilityEnabled,
-                                modifier = Modifier.testTag("switch_left_edge_zone")
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(stringResource(R.string.right_edge_lock_zone_label))
-                            Switch(
-                                checked = editableRightEdgeZoneEnabled,
-                                onCheckedChange = { isChecked ->
-                                    setEditableEdgeEnabled(EdgeZoneSide.RIGHT, isChecked)
-                                    saveSelectedZoneBoolean(rightEdgeLockZoneKey, isChecked)
-                                },
-                                enabled = isAccessibilityEnabled,
-                                modifier = Modifier.testTag("switch_right_edge_zone")
-                            )
-                        }
-
-                        if (anyEdgeZoneEnabled) {
-                            Text(
-                                stringResource(
-                                    R.string.edge_zone_width_label,
-                                    editableEdgeZoneWidthDp.toInt()
-                                ),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Slider(
-                                value = editableEdgeZoneWidthDp,
-                                onValueChange = { setEditableEdgeWidth(it) },
-                                onValueChangeFinished = {
-                                    saveSelectedZoneInt(
-                                        edgeZoneWidthDpKey,
-                                        editableEdgeZoneWidthDp.toInt()
-                                    )
-                                },
-                                valueRange = TapLockEdgeZones.MIN_WIDTH_DP.toFloat()..
-                                    TapLockEdgeZones.MAX_WIDTH_DP.toFloat(),
-                                interactionSource = edgeWidthSliderInteraction,
-                                modifier = Modifier.testTag("slider_edge_zone_width")
-                            )
-
-                            Text(
-                                stringResource(
-                                    R.string.edge_zone_top_offset_label,
-                                    editableEdgeZoneTopOffsetPercent.toInt()
-                                ),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Slider(
-                                value = editableEdgeZoneTopOffsetPercent,
-                                onValueChange = { setEditableTopOffset(it) },
-                                onValueChangeFinished = {
-                                    saveSelectedZoneInt(
-                                        edgeZoneTopOffsetPercentKey,
-                                        editableEdgeZoneTopOffsetPercent.toInt()
-                                    )
-                                },
-                                valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
-                                    TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
-                                interactionSource = edgeTopOffsetSliderInteraction,
-                                modifier = Modifier.testTag("slider_edge_zone_top_offset")
-                            )
-
-                            Text(
-                                stringResource(
-                                    R.string.edge_zone_bottom_offset_label,
-                                    editableEdgeZoneBottomOffsetPercent.toInt()
-                                ),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Slider(
-                                value = editableEdgeZoneBottomOffsetPercent,
-                                onValueChange = { setEditableBottomOffset(it) },
-                                onValueChangeFinished = {
-                                    saveSelectedZoneInt(
-                                        edgeZoneBottomOffsetPercentKey,
-                                        editableEdgeZoneBottomOffsetPercent.toInt()
-                                    )
-                                },
-                                valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
-                                    TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
-                                interactionSource = edgeBottomOffsetSliderInteraction,
-                                modifier = Modifier.testTag("slider_edge_zone_bottom_offset")
-                            )
-                        }
-
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                        Text(
-                            stringResource(R.string.corner_zones_label),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            stringResource(R.string.corner_zones_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(stringResource(R.string.top_left_corner_lock_zone_label))
-                            Switch(
-                                checked = editableTopLeftCornerZoneEnabled,
-                                onCheckedChange = { isChecked ->
-                                    setEditableCornerEnabled(
-                                        CornerZonePosition.TOP_LEFT,
-                                        isChecked
-                                    )
-                                    saveSelectedZoneBoolean(topLeftCornerLockZoneKey, isChecked)
-                                },
-                                enabled = isAccessibilityEnabled,
-                                modifier = Modifier.testTag("switch_top_left_corner_zone")
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(stringResource(R.string.top_right_corner_lock_zone_label))
-                            Switch(
-                                checked = editableTopRightCornerZoneEnabled,
-                                onCheckedChange = { isChecked ->
-                                    setEditableCornerEnabled(
-                                        CornerZonePosition.TOP_RIGHT,
-                                        isChecked
-                                    )
-                                    saveSelectedZoneBoolean(topRightCornerLockZoneKey, isChecked)
-                                },
-                                enabled = isAccessibilityEnabled,
-                                modifier = Modifier.testTag("switch_top_right_corner_zone")
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(stringResource(R.string.bottom_left_corner_lock_zone_label))
-                            Switch(
-                                checked = editableBottomLeftCornerZoneEnabled,
-                                onCheckedChange = { isChecked ->
-                                    setEditableCornerEnabled(
-                                        CornerZonePosition.BOTTOM_LEFT,
-                                        isChecked
-                                    )
-                                    saveSelectedZoneBoolean(
-                                        bottomLeftCornerLockZoneKey,
-                                        isChecked
-                                    )
-                                },
-                                enabled = isAccessibilityEnabled,
-                                modifier = Modifier.testTag("switch_bottom_left_corner_zone")
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(stringResource(R.string.bottom_right_corner_lock_zone_label))
-                            Switch(
-                                checked = editableBottomRightCornerZoneEnabled,
-                                onCheckedChange = { isChecked ->
-                                    setEditableCornerEnabled(
-                                        CornerZonePosition.BOTTOM_RIGHT,
-                                        isChecked
-                                    )
-                                    saveSelectedZoneBoolean(
-                                        bottomRightCornerLockZoneKey,
-                                        isChecked
-                                    )
-                                },
-                                enabled = isAccessibilityEnabled,
-                                modifier = Modifier.testTag("switch_bottom_right_corner_zone")
-                            )
-                        }
-
-                        if (anyCornerZoneEnabled) {
-                            Text(
-                                stringResource(
-                                    R.string.corner_zone_size_label,
-                                    editableCornerZoneSizeDp.toInt()
-                                ),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Slider(
-                                value = editableCornerZoneSizeDp,
-                                onValueChange = { setEditableCornerSize(it) },
-                                onValueChangeFinished = {
-                                    saveSelectedZoneInt(
-                                        cornerZoneSizeDpKey,
-                                        editableCornerZoneSizeDp.toInt()
-                                    )
-                                },
-                                valueRange = TapLockEdgeZones.MIN_CORNER_SIZE_DP.toFloat()..
-                                    TapLockEdgeZones.MAX_CORNER_SIZE_DP.toFloat(),
-                                interactionSource = cornerSizeSliderInteraction,
-                                modifier = Modifier.testTag("slider_corner_zone_size")
-                            )
-                        }
-
-                        if (anyEdgeZoneEnabled || anyCornerZoneEnabled) {
-                            Text(
-                                stringResource(R.string.edge_zone_preview_label),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            EdgeZonePreview(
-                                leftEnabled = editableLeftEdgeZoneEnabled,
-                                rightEnabled = editableRightEdgeZoneEnabled,
-                                edgeWidthDp = editableEdgeZoneWidthDp.toInt(),
-                                topOffsetPercent = editableEdgeZoneTopOffsetPercent.toInt(),
-                                bottomOffsetPercent = editableEdgeZoneBottomOffsetPercent.toInt(),
-                                topLeftCornerEnabled = editableTopLeftCornerZoneEnabled,
-                                topRightCornerEnabled = editableTopRightCornerZoneEnabled,
-                                bottomLeftCornerEnabled = editableBottomLeftCornerZoneEnabled,
-                                bottomRightCornerEnabled = editableBottomRightCornerZoneEnabled,
-                                cornerSizeDp = editableCornerZoneSizeDp.toInt()
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(stringResource(R.string.vibrate_on_lock_label))
-                        Switch(
-                            checked = vibrateOnLock,
-                            onCheckedChange = { isChecked ->
-                                vibrateOnLock = isChecked
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit {
-                                        putBoolean(vibrateOnLockKey, isChecked)
-                                    }
-                            },
-                            modifier = Modifier.testTag("switch_vibrate")
-                        )
-                    }
-
-                    if (vibrateOnLock) {
-                        val vibrationPatternKey = stringResource(R.string.vibration_pattern)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterChip(
-                                selected = vibrationPattern == VibrationPattern.LIGHT,
-                                onClick = {
-                                    vibrationPattern = VibrationPattern.LIGHT
-                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                        .edit { putString(vibrationPatternKey, VibrationPattern.LIGHT.name) }
-                                },
-                                label = { Text(stringResource(R.string.vibration_light)) },
-                                modifier = Modifier.testTag("chip_light")
-                            )
-                            FilterChip(
-                                selected = vibrationPattern == VibrationPattern.MEDIUM,
-                                onClick = {
-                                    vibrationPattern = VibrationPattern.MEDIUM
-                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                        .edit { putString(vibrationPatternKey, VibrationPattern.MEDIUM.name) }
-                                },
-                                label = { Text(stringResource(R.string.vibration_medium)) },
-                                modifier = Modifier.testTag("chip_medium")
-                            )
-                            FilterChip(
-                                selected = vibrationPattern == VibrationPattern.STRONG,
-                                onClick = {
-                                    vibrationPattern = VibrationPattern.STRONG
-                                    context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                        .edit { putString(vibrationPatternKey, VibrationPattern.STRONG.name) }
-                                },
-                                label = { Text(stringResource(R.string.vibration_strong)) },
-                                modifier = Modifier.testTag("chip_strong")
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
-                    val widgetPinSupported = remember { appWidgetManager.isRequestPinAppWidgetSupported }
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
                         Text(
-                            if (widgetCount == 0) {
-                                stringResource(R.string.widget_status_none)
+                            if (isTileAdded) {
+                                stringResource(R.string.quick_settings_tile_added_status)
                             } else {
-                                pluralStringResource(
-                                    R.plurals.widget_count_label,
-                                    widgetCount,
-                                    widgetCount
-                                )
+                                stringResource(R.string.quick_settings_tile_missing_status)
                             },
+                            modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Button(
-                            onClick = {
-                                if (!widgetPinSupported) {
-                                    TapLockFeedback.showWidgetPinUnsupported(context)
-                                } else {
-                                    val requested = appWidgetManager.requestPinAppWidget(
-                                        ComponentName(context, TapLockWidgetProvider::class.java),
-                                        null,
-                                        null
-                                    )
-                                    if (!requested) {
-                                        TapLockFeedback.showWidgetPinUnsupported(context)
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                if (widgetCount == 0) {
-                                    stringResource(R.string.add_widget_button)
-                                } else {
-                                    stringResource(R.string.add_another_widget_button)
-                                }
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(stringResource(R.string.quick_settings_tile_label))
-                        Text(
-                            stringResource(R.string.quick_settings_tile_description),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            onClick = { requestQuickSettingsTilePrompt() },
+                            enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                !isTileAdded
                         ) {
                             Text(
                                 if (isTileAdded) {
-                                    stringResource(R.string.quick_settings_tile_added_status)
+                                    stringResource(R.string.enabled)
                                 } else {
-                                    stringResource(R.string.quick_settings_tile_missing_status)
-                                },
-                                modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Button(
-                                onClick = { requestQuickSettingsTilePrompt() },
-                                enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !isTileAdded
-                            ) {
-                                Text(
-                                    if (isTileAdded) {
-                                        stringResource(R.string.enabled)
-                                    } else {
-                                        stringResource(R.string.quick_settings_tile_button)
-                                    }
-                                )
-                            }
-                        }
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                            Text(
-                                stringResource(R.string.quick_settings_tile_manual_hint),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    stringResource(R.string.quick_settings_tile_button)
+                                }
                             )
                         }
                     }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.show_widget_icon_label))
-                        Switch(
-                            checked = showIcon,
-                            onCheckedChange = { isChecked ->
-                                showIcon = isChecked
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit { putBoolean(showWidgetIconKey, isChecked) }
-                                refreshWidgets()
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_show_icon")
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                        Text(
+                            stringResource(R.string.quick_settings_tile_manual_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
 
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(stringResource(R.string.widget_style_label))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            stringResource(R.string.widget_style_description),
+                            stringResource(R.string.floating_button_label),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(R.string.floating_button_description),
                             style = MaterialTheme.typography.bodySmall
                         )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            TapLockWidgetStyle.entries.forEach { style ->
-                                FilterChip(
-                                    selected = widgetStyle == style,
-                                    onClick = {
-                                        widgetStyle = style
-                                        context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                            .edit { putString(widgetStyleKey, style.name) }
-                                        refreshWidgets()
-                                    },
-                                    label = { Text(stringResource(style.labelResId)) },
-                                    modifier = Modifier.testTag("chip_widget_style_${style.name.lowercase(Locale.US)}")
-                                )
-                            }
-                        }
                     }
-
-                    Text(
-                        stringResource(R.string.widget_preview_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    WidgetStylePreview(
-                        style = widgetStyle,
-                        showIcon = showIcon,
-                        iconBitmap = widgetIconBitmap ?: defaultAppIconBitmap,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    if (showIcon) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Button(
-                                onClick = {
-                                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(stringResource(R.string.select_icon))
-                            }
-                            Button(
-                                onClick = {
-                                    val file = File(context.filesDir, "custom_widget_icon.png")
-                                    if (file.exists()) {
-                                        file.delete()
-                                        Toast.makeText(context, customIconResetMsg, Toast.LENGTH_SHORT).show()
-                                        widgetIconBitmap = null
-                                        refreshWidgets()
-                                        restartFloatingButtonServiceIfRunning()
-                                    }
-                                },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(stringResource(R.string.reset_icon))
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.status_bar_double_tap_label))
-                            Text(
-                                stringResource(R.string.status_bar_double_tap_description),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        Switch(
-                            checked = statusBarDoubleTap,
-                            onCheckedChange = { isChecked ->
-                                statusBarDoubleTap = isChecked
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit {
-                                        putBoolean(statusBarDoubleTapKey, isChecked)
-                                    }
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_status_bar")
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.lock_screen_double_tap_label))
-                            Text(
-                                stringResource(R.string.lock_screen_double_tap_description),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        Switch(
-                            checked = lockScreenDoubleTap,
-                            onCheckedChange = { isChecked ->
-                                lockScreenDoubleTap = isChecked
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit {
-                                        putBoolean(lockScreenDoubleTapKey, isChecked)
-                                    }
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_lock_screen")
-                        )
-                    }
-
-                    if (lockScreenDoubleTap) {
-                        val lockZoneKey = stringResource(R.string.lock_zone_percent)
-                        Text(
-                            stringResource(R.string.lock_zone_label, lockZonePercent.toInt()),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Slider(
-                            value = lockZonePercent,
-                            onValueChange = { lockZonePercent = it },
-                            onValueChangeFinished = {
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit { putInt(lockZoneKey, lockZonePercent.toInt()) }
-                            },
-                            valueRange = 20f..100f,
-                            steps = 15,
-                            modifier = Modifier.testTag("slider_lock_zone")
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(stringResource(R.string.floating_button_label))
-                            Text(
-                                stringResource(R.string.floating_button_description),
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        Switch(
-                            checked = floatingButtonEnabled,
-                            onCheckedChange = { isChecked ->
-                                if (isChecked && !Settings.canDrawOverlays(context)) {
-                                    TapLockFeedback.showOverlayPermissionRequired(context)
-                                    context.startActivity(
-                                        Intent(
-                                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                            "package:${context.packageName}".toUri()
-                                        )
+                    Switch(
+                        checked = floatingButtonEnabled,
+                        onCheckedChange = { isChecked ->
+                            if (isChecked && !Settings.canDrawOverlays(context)) {
+                                TapLockFeedback.showOverlayPermissionRequired(context)
+                                context.startActivity(
+                                    Intent(
+                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        "package:${context.packageName}".toUri()
                                     )
-                                    return@Switch
-                                }
-                                floatingButtonEnabled = isChecked
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit { putBoolean(floatingButtonKey, isChecked) }
-                                val serviceIntent = Intent(context, FloatingButtonService::class.java)
-                                if (isChecked) {
-                                    context.startForegroundService(serviceIntent)
-                                } else {
-                                    context.stopService(serviceIntent)
-                                }
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_floating_button")
-                        )
-                    }
-
-                    if (floatingButtonEnabled) {
-                        Text(
-                            stringResource(R.string.floating_button_preview_label),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        FloatingButtonPreview(
-                            iconBitmap = widgetIconBitmap ?: defaultAppIconBitmap,
-                            sizeDp = floatingButtonSizeDp,
-                            opacityPercent = floatingButtonOpacityPercent,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            stringResource(R.string.floating_button_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Text(
-                            stringResource(
-                                R.string.floating_button_size_label,
-                                floatingButtonSizeDp.toInt()
-                            ),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Slider(
-                            value = floatingButtonSizeDp,
-                            onValueChange = { floatingButtonSizeDp = it },
-                            onValueChangeFinished = {
-                                val clamped = TapLockFloatingButtonConfig.clampSizeDp(
-                                    floatingButtonSizeDp.toInt()
                                 )
-                                floatingButtonSizeDp = clamped.toFloat()
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit { putInt(floatingButtonSizeDpKey, clamped) }
-                                restartFloatingButtonServiceIfRunning()
-                            },
-                            valueRange = TapLockFloatingButtonConfig.MIN_SIZE_DP.toFloat()..
-                                TapLockFloatingButtonConfig.MAX_SIZE_DP.toFloat(),
-                            steps = TapLockFloatingButtonConfig.MAX_SIZE_DP -
-                                TapLockFloatingButtonConfig.MIN_SIZE_DP - 1,
-                            modifier = Modifier.testTag("slider_floating_button_size")
-                        )
-
-                        Text(
-                            stringResource(
-                                R.string.floating_button_opacity_label,
-                                floatingButtonOpacityPercent.toInt()
-                            ),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Slider(
-                            value = floatingButtonOpacityPercent,
-                            onValueChange = { floatingButtonOpacityPercent = it },
-                            onValueChangeFinished = {
-                                val clamped = TapLockFloatingButtonConfig.clampOpacityPercent(
-                                    floatingButtonOpacityPercent.toInt()
-                                )
-                                floatingButtonOpacityPercent = clamped.toFloat()
-                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                    .edit { putInt(floatingButtonOpacityPercentKey, clamped) }
-                                restartFloatingButtonServiceIfRunning()
-                            },
-                            valueRange = TapLockFloatingButtonConfig.MIN_OPACITY_PERCENT.toFloat()..
-                                TapLockFloatingButtonConfig.MAX_OPACITY_PERCENT.toFloat(),
-                            steps = TapLockFloatingButtonConfig.MAX_OPACITY_PERCENT -
-                                TapLockFloatingButtonConfig.MIN_OPACITY_PERCENT - 1,
-                            modifier = Modifier.testTag("slider_floating_button_opacity")
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(stringResource(R.string.app_exclusions_label))
-                        Text(
-                            stringResource(R.string.app_exclusions_description),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Button(
-                            onClick = {
-                                appSearchQuery = ""
-                                showAppExclusionDialog = true
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("button_app_exclusions")
-                        ) {
-                            Text(stringResource(R.string.app_exclusions_button))
-                        }
-                        Text(
-                            if (excludedPackages.isEmpty()) {
-                                excludedAppsSummary
+                                return@Switch
+                            }
+                            floatingButtonEnabled = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putBoolean(floatingButtonKey, isChecked) }
+                            val serviceIntent = Intent(context, FloatingButtonService::class.java)
+                            if (isChecked) {
+                                context.startForegroundService(serviceIntent)
                             } else {
-                                buildString {
-                                    append(
-                                        context.resources.getQuantityString(
-                                            R.plurals.app_exclusions_count,
-                                            excludedPackages.size,
-                                            excludedPackages.size
-                                        )
-                                    )
-                                    append('\n')
-                                    append(excludedAppsSummary)
-                                }
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    // Lock delay dropdown
-                    val lockDelayKey = stringResource(R.string.lock_delay_ms)
-                    val delayOptions = listOf(
-                        0 to stringResource(R.string.lock_delay_none),
-                        500 to stringResource(R.string.lock_delay_half),
-                        1000 to stringResource(R.string.lock_delay_one),
-                        2000 to stringResource(R.string.lock_delay_two)
-                    )
-                    var delayDropdownExpanded by remember { mutableStateOf(false) }
-                    val selectedDelayLabel = delayOptions.first { it.first == lockDelayMs }.second
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            stringResource(R.string.lock_delay_label),
-                            modifier = Modifier.weight(1f)
-                        )
-                        ExposedDropdownMenuBox(
-                            expanded = delayDropdownExpanded,
-                            onExpandedChange = { delayDropdownExpanded = it }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedDelayLabel,
-                                onValueChange = {},
-                                readOnly = true,
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = delayDropdownExpanded) },
-                                modifier = Modifier
-                                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
-                                    .size(width = 120.dp, height = 52.dp),
-                                textStyle = MaterialTheme.typography.bodyMedium
-                            )
-                            DropdownMenu(
-                                expanded = delayDropdownExpanded,
-                                onDismissRequest = { delayDropdownExpanded = false }
-                            ) {
-                                delayOptions.forEach { (ms, label) ->
-                                    DropdownMenuItem(
-                                        text = { Text(label) },
-                                        onClick = {
-                                            lockDelayMs = ms
-                                            delayDropdownExpanded = false
-                                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                                .edit { putInt(lockDelayKey, ms) }
-                                        }
-                                    )
-                                }
+                                context.stopService(serviceIntent)
                             }
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    // Tap-to-test area
-                    DoubleTapTestArea(timeoutMs = timeoutValue.toInt())
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                    // Lock counter
-                    Text(
-                        pluralStringResource(R.plurals.lock_count_label, lockCount, lockCount),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        enabled = isAccessibilityEnabled,
+                        modifier = Modifier.testTag("switch_floating_button")
                     )
                 }
+
+                if (floatingButtonEnabled) {
+                    Text(
+                        stringResource(R.string.floating_button_preview_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FloatingButtonPreview(
+                        iconBitmap = widgetIconBitmap ?: defaultAppIconBitmap,
+                        sizeDp = floatingButtonSizeDp,
+                        opacityPercent = floatingButtonOpacityPercent,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        stringResource(R.string.floating_button_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Text(
+                        stringResource(
+                            R.string.floating_button_size_label,
+                            floatingButtonSizeDp.toInt()
+                        ),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Slider(
+                        value = floatingButtonSizeDp,
+                        onValueChange = { floatingButtonSizeDp = it },
+                        onValueChangeFinished = {
+                            val clamped = TapLockFloatingButtonConfig.clampSizeDp(
+                                floatingButtonSizeDp.toInt()
+                            )
+                            floatingButtonSizeDp = clamped.toFloat()
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putInt(floatingButtonSizeDpKey, clamped) }
+                            restartFloatingButtonServiceIfRunning()
+                        },
+                        valueRange = TapLockFloatingButtonConfig.MIN_SIZE_DP.toFloat()..
+                            TapLockFloatingButtonConfig.MAX_SIZE_DP.toFloat(),
+                        steps = TapLockFloatingButtonConfig.MAX_SIZE_DP -
+                            TapLockFloatingButtonConfig.MIN_SIZE_DP - 1,
+                        modifier = Modifier.testTag("slider_floating_button_size")
+                    )
+
+                    Text(
+                        stringResource(
+                            R.string.floating_button_opacity_label,
+                            floatingButtonOpacityPercent.toInt()
+                        ),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Slider(
+                        value = floatingButtonOpacityPercent,
+                        onValueChange = { floatingButtonOpacityPercent = it },
+                        onValueChangeFinished = {
+                            val clamped = TapLockFloatingButtonConfig.clampOpacityPercent(
+                                floatingButtonOpacityPercent.toInt()
+                            )
+                            floatingButtonOpacityPercent = clamped.toFloat()
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putInt(floatingButtonOpacityPercentKey, clamped) }
+                            restartFloatingButtonServiceIfRunning()
+                        },
+                        valueRange = TapLockFloatingButtonConfig.MIN_OPACITY_PERCENT.toFloat()..
+                            TapLockFloatingButtonConfig.MAX_OPACITY_PERCENT.toFloat(),
+                        steps = TapLockFloatingButtonConfig.MAX_OPACITY_PERCENT -
+                            TapLockFloatingButtonConfig.MIN_OPACITY_PERCENT - 1,
+                        modifier = Modifier.testTag("slider_floating_button_opacity")
+                    )
+                }
+            }
+
+            SettingsSectionCard(
+                title = stringResource(R.string.ambient_triggers_label),
+                description = stringResource(R.string.ambient_triggers_description)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.status_bar_double_tap_label),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(R.string.status_bar_double_tap_description),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = statusBarDoubleTap,
+                        onCheckedChange = { isChecked ->
+                            statusBarDoubleTap = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putBoolean(statusBarDoubleTapKey, isChecked) }
+                        },
+                        enabled = isAccessibilityEnabled,
+                        modifier = Modifier.testTag("switch_status_bar")
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.lock_screen_double_tap_label),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(R.string.lock_screen_double_tap_description),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = lockScreenDoubleTap,
+                        onCheckedChange = { isChecked ->
+                            lockScreenDoubleTap = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putBoolean(lockScreenDoubleTapKey, isChecked) }
+                        },
+                        enabled = isAccessibilityEnabled,
+                        modifier = Modifier.testTag("switch_lock_screen")
+                    )
+                }
+
+                if (lockScreenDoubleTap) {
+                    val lockZoneKey = stringResource(R.string.lock_zone_percent)
+                    Text(
+                        stringResource(R.string.lock_zone_label, lockZonePercent.toInt()),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Slider(
+                        value = lockZonePercent,
+                        onValueChange = { lockZonePercent = it },
+                        onValueChangeFinished = {
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putInt(lockZoneKey, lockZonePercent.toInt()) }
+                        },
+                        valueRange = 20f..100f,
+                        steps = 15,
+                        modifier = Modifier.testTag("slider_lock_zone")
+                    )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.edge_zones_label),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        stringResource(R.string.edge_zones_description),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Text(
+                        stringResource(R.string.edge_zones_portrait_only),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        stringResource(R.string.edge_zones_subsection_label),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.left_edge_lock_zone_label))
+                        Switch(
+                            checked = editableLeftEdgeZoneEnabled,
+                            onCheckedChange = { isChecked ->
+                                setEditableEdgeEnabled(EdgeZoneSide.LEFT, isChecked)
+                                saveSelectedZoneBoolean(leftEdgeLockZoneKey, isChecked)
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("switch_left_edge_zone")
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.right_edge_lock_zone_label))
+                        Switch(
+                            checked = editableRightEdgeZoneEnabled,
+                            onCheckedChange = { isChecked ->
+                                setEditableEdgeEnabled(EdgeZoneSide.RIGHT, isChecked)
+                                saveSelectedZoneBoolean(rightEdgeLockZoneKey, isChecked)
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("switch_right_edge_zone")
+                        )
+                    }
+
+                    if (anyEdgeZoneEnabled) {
+                        Text(
+                            stringResource(
+                                R.string.edge_zone_width_label,
+                                editableEdgeZoneWidthDp.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = editableEdgeZoneWidthDp,
+                            onValueChange = { setEditableEdgeWidth(it) },
+                            onValueChangeFinished = {
+                                saveSelectedZoneInt(
+                                    edgeZoneWidthDpKey,
+                                    editableEdgeZoneWidthDp.toInt()
+                                )
+                            },
+                            valueRange = TapLockEdgeZones.MIN_WIDTH_DP.toFloat()..
+                                TapLockEdgeZones.MAX_WIDTH_DP.toFloat(),
+                            interactionSource = edgeWidthSliderInteraction,
+                            modifier = Modifier.testTag("slider_edge_zone_width")
+                        )
+
+                        Text(
+                            stringResource(
+                                R.string.edge_zone_top_offset_label,
+                                editableEdgeZoneTopOffsetPercent.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = editableEdgeZoneTopOffsetPercent,
+                            onValueChange = { setEditableTopOffset(it) },
+                            onValueChangeFinished = {
+                                saveSelectedZoneInt(
+                                    edgeZoneTopOffsetPercentKey,
+                                    editableEdgeZoneTopOffsetPercent.toInt()
+                                )
+                            },
+                            valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
+                                TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
+                            interactionSource = edgeTopOffsetSliderInteraction,
+                            modifier = Modifier.testTag("slider_edge_zone_top_offset")
+                        )
+
+                        Text(
+                            stringResource(
+                                R.string.edge_zone_bottom_offset_label,
+                                editableEdgeZoneBottomOffsetPercent.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = editableEdgeZoneBottomOffsetPercent,
+                            onValueChange = { setEditableBottomOffset(it) },
+                            onValueChangeFinished = {
+                                saveSelectedZoneInt(
+                                    edgeZoneBottomOffsetPercentKey,
+                                    editableEdgeZoneBottomOffsetPercent.toInt()
+                                )
+                            },
+                            valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
+                                TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
+                            interactionSource = edgeBottomOffsetSliderInteraction,
+                            modifier = Modifier.testTag("slider_edge_zone_bottom_offset")
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                    Text(
+                        stringResource(R.string.corner_zones_label),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        stringResource(R.string.corner_zones_description),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.top_left_corner_lock_zone_label))
+                        Switch(
+                            checked = editableTopLeftCornerZoneEnabled,
+                            onCheckedChange = { isChecked ->
+                                setEditableCornerEnabled(CornerZonePosition.TOP_LEFT, isChecked)
+                                saveSelectedZoneBoolean(topLeftCornerLockZoneKey, isChecked)
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("switch_top_left_corner_zone")
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.top_right_corner_lock_zone_label))
+                        Switch(
+                            checked = editableTopRightCornerZoneEnabled,
+                            onCheckedChange = { isChecked ->
+                                setEditableCornerEnabled(CornerZonePosition.TOP_RIGHT, isChecked)
+                                saveSelectedZoneBoolean(topRightCornerLockZoneKey, isChecked)
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("switch_top_right_corner_zone")
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.bottom_left_corner_lock_zone_label))
+                        Switch(
+                            checked = editableBottomLeftCornerZoneEnabled,
+                            onCheckedChange = { isChecked ->
+                                setEditableCornerEnabled(CornerZonePosition.BOTTOM_LEFT, isChecked)
+                                saveSelectedZoneBoolean(bottomLeftCornerLockZoneKey, isChecked)
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("switch_bottom_left_corner_zone")
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.bottom_right_corner_lock_zone_label))
+                        Switch(
+                            checked = editableBottomRightCornerZoneEnabled,
+                            onCheckedChange = { isChecked ->
+                                setEditableCornerEnabled(CornerZonePosition.BOTTOM_RIGHT, isChecked)
+                                saveSelectedZoneBoolean(bottomRightCornerLockZoneKey, isChecked)
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("switch_bottom_right_corner_zone")
+                        )
+                    }
+
+                    if (anyCornerZoneEnabled) {
+                        Text(
+                            stringResource(
+                                R.string.corner_zone_size_label,
+                                editableCornerZoneSizeDp.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = editableCornerZoneSizeDp,
+                            onValueChange = { setEditableCornerSize(it) },
+                            onValueChangeFinished = {
+                                saveSelectedZoneInt(
+                                    cornerZoneSizeDpKey,
+                                    editableCornerZoneSizeDp.toInt()
+                                )
+                            },
+                            valueRange = TapLockEdgeZones.MIN_CORNER_SIZE_DP.toFloat()..
+                                TapLockEdgeZones.MAX_CORNER_SIZE_DP.toFloat(),
+                            interactionSource = cornerSizeSliderInteraction,
+                            modifier = Modifier.testTag("slider_corner_zone_size")
+                        )
+                    }
+
+                    if (anyEdgeZoneEnabled || anyCornerZoneEnabled) {
+                        Text(
+                            stringResource(R.string.edge_zone_preview_label),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        EdgeZonePreview(
+                            leftEnabled = editableLeftEdgeZoneEnabled,
+                            rightEnabled = editableRightEdgeZoneEnabled,
+                            edgeWidthDp = editableEdgeZoneWidthDp.toInt(),
+                            topOffsetPercent = editableEdgeZoneTopOffsetPercent.toInt(),
+                            bottomOffsetPercent = editableEdgeZoneBottomOffsetPercent.toInt(),
+                            topLeftCornerEnabled = editableTopLeftCornerZoneEnabled,
+                            topRightCornerEnabled = editableTopRightCornerZoneEnabled,
+                            bottomLeftCornerEnabled = editableBottomLeftCornerZoneEnabled,
+                            bottomRightCornerEnabled = editableBottomRightCornerZoneEnabled,
+                            cornerSizeDp = editableCornerZoneSizeDp.toInt()
+                        )
+                    }
+                }
+            }
+
+            SettingsSectionCard(
+                title = stringResource(R.string.behavior_label),
+                description = stringResource(R.string.behavior_description)
+            ) {
+                Text(
+                    stringResource(R.string.slider_timeout_label, timeoutValue.toInt()),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Slider(
+                    value = timeoutValue,
+                    onValueChange = { timeoutValue = it },
+                    onValueChangeFinished = {
+                        context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                            .edit { putInt(doubleTapTimeoutKey, timeoutValue.toInt()) }
+                    },
+                    valueRange = 100f..800f,
+                    steps = 13,
+                    modifier = Modifier.testTag("slider_timeout")
+                )
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.vibrate_on_lock_label))
+                    Switch(
+                        checked = vibrateOnLock,
+                        onCheckedChange = { isChecked ->
+                            vibrateOnLock = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putBoolean(vibrateOnLockKey, isChecked) }
+                        },
+                        modifier = Modifier.testTag("switch_vibrate")
+                    )
+                }
+
+                if (vibrateOnLock) {
+                    val vibrationPatternKey = stringResource(R.string.vibration_pattern)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = vibrationPattern == VibrationPattern.LIGHT,
+                            onClick = {
+                                vibrationPattern = VibrationPattern.LIGHT
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putString(
+                                            vibrationPatternKey,
+                                            VibrationPattern.LIGHT.name
+                                        )
+                                    }
+                            },
+                            label = { Text(stringResource(R.string.vibration_light)) },
+                            modifier = Modifier.testTag("chip_light")
+                        )
+                        FilterChip(
+                            selected = vibrationPattern == VibrationPattern.MEDIUM,
+                            onClick = {
+                                vibrationPattern = VibrationPattern.MEDIUM
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putString(
+                                            vibrationPatternKey,
+                                            VibrationPattern.MEDIUM.name
+                                        )
+                                    }
+                            },
+                            label = { Text(stringResource(R.string.vibration_medium)) },
+                            modifier = Modifier.testTag("chip_medium")
+                        )
+                        FilterChip(
+                            selected = vibrationPattern == VibrationPattern.STRONG,
+                            onClick = {
+                                vibrationPattern = VibrationPattern.STRONG
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putString(
+                                            vibrationPatternKey,
+                                            VibrationPattern.STRONG.name
+                                        )
+                                    }
+                            },
+                            label = { Text(stringResource(R.string.vibration_strong)) },
+                            modifier = Modifier.testTag("chip_strong")
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.lock_delay_label),
+                        modifier = Modifier.weight(1f)
+                    )
+                    ExposedDropdownMenuBox(
+                        expanded = delayDropdownExpanded,
+                        onExpandedChange = { delayDropdownExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedDelayLabel,
+                            onValueChange = {},
+                            readOnly = true,
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(
+                                    expanded = delayDropdownExpanded
+                                )
+                            },
+                            modifier = Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                                .size(width = 120.dp, height = 52.dp),
+                            textStyle = MaterialTheme.typography.bodyMedium
+                        )
+                        DropdownMenu(
+                            expanded = delayDropdownExpanded,
+                            onDismissRequest = { delayDropdownExpanded = false }
+                        ) {
+                            delayOptions.forEach { (ms, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        lockDelayMs = ms
+                                        delayDropdownExpanded = false
+                                        context.getSharedPreferences(
+                                            sharedPrefName,
+                                            Context.MODE_PRIVATE
+                                        ).edit { putInt(lockDelayKey, ms) }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                DoubleTapTestArea(timeoutMs = timeoutValue.toInt())
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                Text(
+                    pluralStringResource(R.plurals.lock_count_label, lockCount, lockCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            SettingsSectionCard(
+                title = stringResource(R.string.app_rules_label),
+                description = stringResource(R.string.app_exclusions_description)
+            ) {
+                Button(
+                    onClick = {
+                        appSearchQuery = ""
+                        showAppExclusionDialog = true
+                    },
+                    enabled = isAccessibilityEnabled,
+                    modifier = Modifier.testTag("button_app_exclusions")
+                ) {
+                    Text(stringResource(R.string.app_exclusions_button))
+                }
+                Text(
+                    if (excludedPackages.isEmpty()) {
+                        excludedAppsSummary
+                    } else {
+                        buildString {
+                            append(
+                                context.resources.getQuantityString(
+                                    R.plurals.app_exclusions_count,
+                                    excludedPackages.size,
+                                    excludedPackages.size
+                                )
+                            )
+                            append('\n')
+                            append(excludedAppsSummary)
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             }
@@ -1778,6 +1785,33 @@ fun AppExclusionDialog(
             }
         }
     )
+}
+
+@Composable
+private fun SettingsSectionCard(
+    title: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                content()
+            }
+        )
+    }
 }
 
 @Composable
