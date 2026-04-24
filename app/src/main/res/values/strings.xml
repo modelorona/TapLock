@@ -160,7 +160,7 @@
     <string name="app_exclusions_summary_more">%1$s, and %2$d more</string>
     <string name="app_exclusions_dialog_title">Choose Apps</string>
     <string name="app_exclusions_search_label">Search apps</string>
-    <string name="app_exclusions_loading">Loading apps...</string>
+    <string name="app_exclusions_loading">Loading apps…</string>
     <string name="app_exclusions_no_results">No matching apps</string>
     <string name="app_exclusions_clear">Clear All</string>
     <string name="app_exclusions_done">Done</string>
