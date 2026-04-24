@@ -39,9 +39,6 @@ class SettingsUiTest {
     private fun getPrefs(): SharedPreferences =
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
 
-    private fun landscapeKey(baseResId: Int): String =
-        TapLockEdgeZones.prefKey(context.getString(baseResId), ZoneOrientation.LANDSCAPE)
-
     @Before
     fun setup() {
         getPrefs().edit().clear().commit()
@@ -202,23 +199,6 @@ class SettingsUiTest {
     }
 
     @Test
-    fun toggleLandscapeLeftEdgeZone_updatesLandscapePref() {
-        composeTestRule.onNodeWithTag("chip_zone_orientation_landscape")
-            .performScrollTo()
-            .performClick()
-
-        composeTestRule.onNodeWithTag("switch_left_edge_zone")
-            .performScrollTo()
-            .performClick()
-
-        composeTestRule.onNodeWithTag("switch_left_edge_zone")
-            .assertIsOn()
-
-        assertTrue(getPrefs().getBoolean(landscapeKey(R.string.left_edge_lock_zone), false))
-        assertFalse(getPrefs().getBoolean(context.getString(R.string.left_edge_lock_zone), false))
-    }
-
-    @Test
     fun updateTopEdgeOffset_updatesPref() {
         composeTestRule.onNodeWithTag("switch_left_edge_zone")
             .performScrollTo()
@@ -276,31 +256,6 @@ class SettingsUiTest {
             72,
             getPrefs().getInt(
                 context.getString(R.string.corner_zone_size_dp),
-                TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
-            )
-        )
-    }
-
-    @Test
-    fun updateLandscapeCornerZoneSize_updatesLandscapePref() {
-        composeTestRule.onNodeWithTag("chip_zone_orientation_landscape")
-            .performScrollTo()
-            .performClick()
-
-        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
-            .performScrollTo()
-            .performClick()
-
-        composeTestRule.onNodeWithTag("slider_corner_zone_size")
-            .performScrollTo()
-            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-                assertTrue(setProgress(84f))
-            }
-
-        assertEquals(
-            84,
-            getPrefs().getInt(
-                landscapeKey(R.string.corner_zone_size_dp),
                 TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
             )
         )

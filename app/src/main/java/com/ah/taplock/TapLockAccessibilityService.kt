@@ -123,33 +123,18 @@ class TapLockAccessibilityService : AccessibilityService() {
         return getSharedPreferences(getString(R.string.shared_pref_name), MODE_PRIVATE)
     }
 
-    private fun currentZoneOrientation(): ZoneOrientation {
-        val bounds = (getSystemService(WINDOW_SERVICE) as WindowManager).currentWindowMetrics.bounds
-        return TapLockEdgeZones.orientationForBounds(bounds.width(), bounds.height())
-    }
-
-    private fun zonePrefKey(resId: Int, orientation: ZoneOrientation = currentZoneOrientation()): String =
-        TapLockEdgeZones.prefKey(getString(resId), orientation)
-
     private fun isZonePreferenceKey(key: String?): Boolean {
         if (key == null) return false
-
-        val zoneKeys = listOf(
-            getString(R.string.left_edge_lock_zone),
-            getString(R.string.right_edge_lock_zone),
-            getString(R.string.top_left_corner_lock_zone),
-            getString(R.string.top_right_corner_lock_zone),
-            getString(R.string.bottom_left_corner_lock_zone),
-            getString(R.string.bottom_right_corner_lock_zone),
-            getString(R.string.edge_zone_width_dp),
-            getString(R.string.corner_zone_size_dp),
-            getString(R.string.edge_zone_top_offset_percent),
-            getString(R.string.edge_zone_bottom_offset_percent)
-        )
-
-        return zoneKeys.any { baseKey ->
-            key == baseKey || key == TapLockEdgeZones.prefKey(baseKey, ZoneOrientation.LANDSCAPE)
-        }
+        return key == getString(R.string.left_edge_lock_zone) ||
+            key == getString(R.string.right_edge_lock_zone) ||
+            key == getString(R.string.top_left_corner_lock_zone) ||
+            key == getString(R.string.top_right_corner_lock_zone) ||
+            key == getString(R.string.bottom_left_corner_lock_zone) ||
+            key == getString(R.string.bottom_right_corner_lock_zone) ||
+            key == getString(R.string.edge_zone_width_dp) ||
+            key == getString(R.string.corner_zone_size_dp) ||
+            key == getString(R.string.edge_zone_top_offset_percent) ||
+            key == getString(R.string.edge_zone_bottom_offset_percent)
     }
 
     private fun registerPrefListener() {
@@ -282,9 +267,8 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun updateEdgeOverlays() {
         val prefs = getPrefs()
-        val orientation = currentZoneOrientation()
-        val leftEnabled = prefs.getBoolean(zonePrefKey(R.string.left_edge_lock_zone, orientation), false)
-        val rightEnabled = prefs.getBoolean(zonePrefKey(R.string.right_edge_lock_zone, orientation), false)
+        val leftEnabled = prefs.getBoolean(getString(R.string.left_edge_lock_zone), false)
+        val rightEnabled = prefs.getBoolean(getString(R.string.right_edge_lock_zone), false)
         val canShowEdgeZones = shouldShowInteractiveZones()
 
         if (leftEnabled && canShowEdgeZones) {
@@ -306,33 +290,26 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun updateCornerOverlays() {
         val prefs = getPrefs()
-        val orientation = currentZoneOrientation()
         val canShowCornerZones = shouldShowInteractiveZones()
 
         updateCornerOverlay(
             position = CornerZonePosition.TOP_LEFT,
-            enabled = prefs.getBoolean(zonePrefKey(R.string.top_left_corner_lock_zone, orientation), false),
+            enabled = prefs.getBoolean(getString(R.string.top_left_corner_lock_zone), false),
             canShow = canShowCornerZones
         )
         updateCornerOverlay(
             position = CornerZonePosition.TOP_RIGHT,
-            enabled = prefs.getBoolean(zonePrefKey(R.string.top_right_corner_lock_zone, orientation), false),
+            enabled = prefs.getBoolean(getString(R.string.top_right_corner_lock_zone), false),
             canShow = canShowCornerZones
         )
         updateCornerOverlay(
             position = CornerZonePosition.BOTTOM_LEFT,
-            enabled = prefs.getBoolean(
-                zonePrefKey(R.string.bottom_left_corner_lock_zone, orientation),
-                false
-            ),
+            enabled = prefs.getBoolean(getString(R.string.bottom_left_corner_lock_zone), false),
             canShow = canShowCornerZones
         )
         updateCornerOverlay(
             position = CornerZonePosition.BOTTOM_RIGHT,
-            enabled = prefs.getBoolean(
-                zonePrefKey(R.string.bottom_right_corner_lock_zone, orientation),
-                false
-            ),
+            enabled = prefs.getBoolean(getString(R.string.bottom_right_corner_lock_zone), false),
             canShow = canShowCornerZones
         )
 
@@ -882,9 +859,8 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun createEdgeFrame(side: EdgeZoneSide): EdgeZoneFrame {
         val prefs = getPrefs()
-        val orientation = currentZoneOrientation()
         val widthDp = prefs.getInt(
-            zonePrefKey(R.string.edge_zone_width_dp, orientation),
+            getString(R.string.edge_zone_width_dp),
             TapLockEdgeZones.DEFAULT_WIDTH_DP
         )
         val legacyCoveragePercent = prefs.getInt(
@@ -894,20 +870,12 @@ class TapLockAccessibilityService : AccessibilityService() {
         val (fallbackTopOffsetPercent, fallbackBottomOffsetPercent) =
             TapLockEdgeZones.deriveOffsetsFromCoverage(legacyCoveragePercent)
         val topOffsetPercent = prefs.getInt(
-            zonePrefKey(R.string.edge_zone_top_offset_percent, orientation),
-            if (orientation == ZoneOrientation.PORTRAIT) {
-                fallbackTopOffsetPercent
-            } else {
-                TapLockEdgeZones.DEFAULT_TOP_OFFSET_PERCENT
-            }
+            getString(R.string.edge_zone_top_offset_percent),
+            fallbackTopOffsetPercent
         )
         val bottomOffsetPercent = prefs.getInt(
-            zonePrefKey(R.string.edge_zone_bottom_offset_percent, orientation),
-            if (orientation == ZoneOrientation.PORTRAIT) {
-                fallbackBottomOffsetPercent
-            } else {
-                TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT
-            }
+            getString(R.string.edge_zone_bottom_offset_percent),
+            fallbackBottomOffsetPercent
         )
         val bounds = (getSystemService(WINDOW_SERVICE) as WindowManager).currentWindowMetrics.bounds
         return TapLockEdgeZones.buildFrame(
@@ -923,9 +891,8 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun createCornerFrame(position: CornerZonePosition): EdgeZoneFrame {
         val prefs = getPrefs()
-        val orientation = currentZoneOrientation()
         val sizeDp = prefs.getInt(
-            zonePrefKey(R.string.corner_zone_size_dp, orientation),
+            getString(R.string.corner_zone_size_dp),
             TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
         )
         val bounds = (getSystemService(WINDOW_SERVICE) as WindowManager).currentWindowMetrics.bounds

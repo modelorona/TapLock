@@ -85,7 +85,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -128,7 +127,6 @@ class MainActivity : ComponentActivity() {
     }
 
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TapLockScreen() {
@@ -178,19 +176,12 @@ fun TapLockScreen() {
     var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
     var statusBarDoubleTap by remember { mutableStateOf(false) }
     var lockScreenDoubleTap by remember { mutableStateOf(false) }
-    var selectedZoneOrientation by remember { mutableStateOf(ZoneOrientation.PORTRAIT) }
     var leftEdgeZoneEnabled by remember { mutableStateOf(false) }
     var rightEdgeZoneEnabled by remember { mutableStateOf(false) }
     var topLeftCornerZoneEnabled by remember { mutableStateOf(false) }
     var topRightCornerZoneEnabled by remember { mutableStateOf(false) }
     var bottomLeftCornerZoneEnabled by remember { mutableStateOf(false) }
     var bottomRightCornerZoneEnabled by remember { mutableStateOf(false) }
-    var landscapeLeftEdgeZoneEnabled by remember { mutableStateOf(false) }
-    var landscapeRightEdgeZoneEnabled by remember { mutableStateOf(false) }
-    var landscapeTopLeftCornerZoneEnabled by remember { mutableStateOf(false) }
-    var landscapeTopRightCornerZoneEnabled by remember { mutableStateOf(false) }
-    var landscapeBottomLeftCornerZoneEnabled by remember { mutableStateOf(false) }
-    var landscapeBottomRightCornerZoneEnabled by remember { mutableStateOf(false) }
     var infoExpanded by remember { mutableStateOf(true) }
     var showOnboarding by remember { mutableStateOf(false) }
     var onboardingStep by remember { mutableIntStateOf(0) }
@@ -209,18 +200,6 @@ fun TapLockScreen() {
     var cornerZoneSizeDp by remember {
         mutableFloatStateOf(TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP.toFloat())
     }
-    var landscapeEdgeZoneWidthDp by remember {
-        mutableFloatStateOf(TapLockEdgeZones.DEFAULT_WIDTH_DP.toFloat())
-    }
-    var landscapeEdgeZoneTopOffsetPercent by remember {
-        mutableFloatStateOf(TapLockEdgeZones.DEFAULT_TOP_OFFSET_PERCENT.toFloat())
-    }
-    var landscapeEdgeZoneBottomOffsetPercent by remember {
-        mutableFloatStateOf(TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT.toFloat())
-    }
-    var landscapeCornerZoneSizeDp by remember {
-        mutableFloatStateOf(TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP.toFloat())
-    }
     var floatingButtonEnabled by remember { mutableStateOf(false) }
     var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     var excludedPackages by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -236,69 +215,23 @@ fun TapLockScreen() {
     val isEdgeTopOffsetSliderDragged by edgeTopOffsetSliderInteraction.collectIsDraggedAsState()
     val isEdgeBottomOffsetSliderDragged by edgeBottomOffsetSliderInteraction.collectIsDraggedAsState()
     val isCornerSizeSliderDragged by cornerSizeSliderInteraction.collectIsDraggedAsState()
-    val configuration = LocalConfiguration.current
-    val currentDeviceZoneOrientation = TapLockEdgeZones.orientationForBounds(
-        configuration.screenWidthDp,
-        configuration.screenHeightDp
-    )
-    val editableLeftEdgeZoneEnabled = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        leftEdgeZoneEnabled
-    } else {
-        landscapeLeftEdgeZoneEnabled
-    }
-    val editableRightEdgeZoneEnabled = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        rightEdgeZoneEnabled
-    } else {
-        landscapeRightEdgeZoneEnabled
-    }
-    val editableTopLeftCornerZoneEnabled = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        topLeftCornerZoneEnabled
-    } else {
-        landscapeTopLeftCornerZoneEnabled
-    }
-    val editableTopRightCornerZoneEnabled = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        topRightCornerZoneEnabled
-    } else {
-        landscapeTopRightCornerZoneEnabled
-    }
-    val editableBottomLeftCornerZoneEnabled = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        bottomLeftCornerZoneEnabled
-    } else {
-        landscapeBottomLeftCornerZoneEnabled
-    }
-    val editableBottomRightCornerZoneEnabled = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        bottomRightCornerZoneEnabled
-    } else {
-        landscapeBottomRightCornerZoneEnabled
-    }
-    val editableEdgeZoneWidthDp = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        edgeZoneWidthDp
-    } else {
-        landscapeEdgeZoneWidthDp
-    }
-    val editableEdgeZoneTopOffsetPercent = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        edgeZoneTopOffsetPercent
-    } else {
-        landscapeEdgeZoneTopOffsetPercent
-    }
-    val editableEdgeZoneBottomOffsetPercent = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        edgeZoneBottomOffsetPercent
-    } else {
-        landscapeEdgeZoneBottomOffsetPercent
-    }
-    val editableCornerZoneSizeDp = if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-        cornerZoneSizeDp
-    } else {
-        landscapeCornerZoneSizeDp
-    }
+    val editableLeftEdgeZoneEnabled = leftEdgeZoneEnabled
+    val editableRightEdgeZoneEnabled = rightEdgeZoneEnabled
+    val editableTopLeftCornerZoneEnabled = topLeftCornerZoneEnabled
+    val editableTopRightCornerZoneEnabled = topRightCornerZoneEnabled
+    val editableBottomLeftCornerZoneEnabled = bottomLeftCornerZoneEnabled
+    val editableBottomRightCornerZoneEnabled = bottomRightCornerZoneEnabled
+    val editableEdgeZoneWidthDp = edgeZoneWidthDp
+    val editableEdgeZoneTopOffsetPercent = edgeZoneTopOffsetPercent
+    val editableEdgeZoneBottomOffsetPercent = edgeZoneBottomOffsetPercent
+    val editableCornerZoneSizeDp = cornerZoneSizeDp
     val anyEdgeZoneEnabled = editableLeftEdgeZoneEnabled || editableRightEdgeZoneEnabled
     val anyCornerZoneEnabled = editableTopLeftCornerZoneEnabled ||
         editableTopRightCornerZoneEnabled ||
         editableBottomLeftCornerZoneEnabled ||
         editableBottomRightCornerZoneEnabled
     val showLiveZoneOverlay = (
-        selectedZoneOrientation == currentDeviceZoneOrientation &&
-            (anyEdgeZoneEnabled || anyCornerZoneEnabled)
+        anyEdgeZoneEnabled || anyCornerZoneEnabled
         ) && (
         isEdgeWidthSliderDragged ||
             isEdgeTopOffsetSliderDragged ||
@@ -306,81 +239,46 @@ fun TapLockScreen() {
             isCornerSizeSliderDragged
         )
 
-    fun selectedZonePrefKey(baseKey: String): String =
-        TapLockEdgeZones.prefKey(baseKey, selectedZoneOrientation)
-
     fun saveSelectedZoneBoolean(baseKey: String, value: Boolean) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-            .edit { putBoolean(selectedZonePrefKey(baseKey), value) }
+            .edit { putBoolean(baseKey, value) }
     }
 
     fun saveSelectedZoneInt(baseKey: String, value: Int) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-            .edit { putInt(selectedZonePrefKey(baseKey), value) }
+            .edit { putInt(baseKey, value) }
     }
 
     fun setEditableEdgeEnabled(side: EdgeZoneSide, isEnabled: Boolean) {
-        when (selectedZoneOrientation) {
-            ZoneOrientation.PORTRAIT -> when (side) {
-                EdgeZoneSide.LEFT -> leftEdgeZoneEnabled = isEnabled
-                EdgeZoneSide.RIGHT -> rightEdgeZoneEnabled = isEnabled
-            }
-
-            ZoneOrientation.LANDSCAPE -> when (side) {
-                EdgeZoneSide.LEFT -> landscapeLeftEdgeZoneEnabled = isEnabled
-                EdgeZoneSide.RIGHT -> landscapeRightEdgeZoneEnabled = isEnabled
-            }
+        when (side) {
+            EdgeZoneSide.LEFT -> leftEdgeZoneEnabled = isEnabled
+            EdgeZoneSide.RIGHT -> rightEdgeZoneEnabled = isEnabled
         }
     }
 
     fun setEditableCornerEnabled(position: CornerZonePosition, isEnabled: Boolean) {
-        when (selectedZoneOrientation) {
-            ZoneOrientation.PORTRAIT -> when (position) {
-                CornerZonePosition.TOP_LEFT -> topLeftCornerZoneEnabled = isEnabled
-                CornerZonePosition.TOP_RIGHT -> topRightCornerZoneEnabled = isEnabled
-                CornerZonePosition.BOTTOM_LEFT -> bottomLeftCornerZoneEnabled = isEnabled
-                CornerZonePosition.BOTTOM_RIGHT -> bottomRightCornerZoneEnabled = isEnabled
-            }
-
-            ZoneOrientation.LANDSCAPE -> when (position) {
-                CornerZonePosition.TOP_LEFT -> landscapeTopLeftCornerZoneEnabled = isEnabled
-                CornerZonePosition.TOP_RIGHT -> landscapeTopRightCornerZoneEnabled = isEnabled
-                CornerZonePosition.BOTTOM_LEFT -> landscapeBottomLeftCornerZoneEnabled = isEnabled
-                CornerZonePosition.BOTTOM_RIGHT -> landscapeBottomRightCornerZoneEnabled = isEnabled
-            }
+        when (position) {
+            CornerZonePosition.TOP_LEFT -> topLeftCornerZoneEnabled = isEnabled
+            CornerZonePosition.TOP_RIGHT -> topRightCornerZoneEnabled = isEnabled
+            CornerZonePosition.BOTTOM_LEFT -> bottomLeftCornerZoneEnabled = isEnabled
+            CornerZonePosition.BOTTOM_RIGHT -> bottomRightCornerZoneEnabled = isEnabled
         }
     }
 
     fun setEditableEdgeWidth(value: Float) {
-        if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-            edgeZoneWidthDp = value
-        } else {
-            landscapeEdgeZoneWidthDp = value
-        }
+        edgeZoneWidthDp = value
     }
 
     fun setEditableTopOffset(value: Float) {
-        if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-            edgeZoneTopOffsetPercent = value
-        } else {
-            landscapeEdgeZoneTopOffsetPercent = value
-        }
+        edgeZoneTopOffsetPercent = value
     }
 
     fun setEditableBottomOffset(value: Float) {
-        if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-            edgeZoneBottomOffsetPercent = value
-        } else {
-            landscapeEdgeZoneBottomOffsetPercent = value
-        }
+        edgeZoneBottomOffsetPercent = value
     }
 
     fun setEditableCornerSize(value: Float) {
-        if (selectedZoneOrientation == ZoneOrientation.PORTRAIT) {
-            cornerZoneSizeDp = value
-        } else {
-            landscapeCornerZoneSizeDp = value
-        }
+        cornerZoneSizeDp = value
     }
 
     LaunchedEffect(Unit) {
@@ -397,30 +295,6 @@ fun TapLockScreen() {
         topRightCornerZoneEnabled = prefs.getBoolean(topRightCornerLockZoneKey, false)
         bottomLeftCornerZoneEnabled = prefs.getBoolean(bottomLeftCornerLockZoneKey, false)
         bottomRightCornerZoneEnabled = prefs.getBoolean(bottomRightCornerLockZoneKey, false)
-        landscapeLeftEdgeZoneEnabled = prefs.getBoolean(
-            TapLockEdgeZones.prefKey(leftEdgeLockZoneKey, ZoneOrientation.LANDSCAPE),
-            false
-        )
-        landscapeRightEdgeZoneEnabled = prefs.getBoolean(
-            TapLockEdgeZones.prefKey(rightEdgeLockZoneKey, ZoneOrientation.LANDSCAPE),
-            false
-        )
-        landscapeTopLeftCornerZoneEnabled = prefs.getBoolean(
-            TapLockEdgeZones.prefKey(topLeftCornerLockZoneKey, ZoneOrientation.LANDSCAPE),
-            false
-        )
-        landscapeTopRightCornerZoneEnabled = prefs.getBoolean(
-            TapLockEdgeZones.prefKey(topRightCornerLockZoneKey, ZoneOrientation.LANDSCAPE),
-            false
-        )
-        landscapeBottomLeftCornerZoneEnabled = prefs.getBoolean(
-            TapLockEdgeZones.prefKey(bottomLeftCornerLockZoneKey, ZoneOrientation.LANDSCAPE),
-            false
-        )
-        landscapeBottomRightCornerZoneEnabled = prefs.getBoolean(
-            TapLockEdgeZones.prefKey(bottomRightCornerLockZoneKey, ZoneOrientation.LANDSCAPE),
-            false
-        )
         infoExpanded = !prefs.getBoolean(hasSeenInfoKey, false)
         showOnboarding = !prefs.getBoolean(hasCompletedOnboardingKey, false)
         lockDelayMs = prefs.getInt(lockDelayMsKey, 0)
@@ -446,22 +320,6 @@ fun TapLockScreen() {
         ).toFloat()
         cornerZoneSizeDp = prefs.getInt(
             cornerZoneSizeDpKey,
-            TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
-        ).toFloat()
-        landscapeEdgeZoneWidthDp = prefs.getInt(
-            TapLockEdgeZones.prefKey(edgeZoneWidthDpKey, ZoneOrientation.LANDSCAPE),
-            TapLockEdgeZones.DEFAULT_WIDTH_DP
-        ).toFloat()
-        landscapeEdgeZoneTopOffsetPercent = prefs.getInt(
-            TapLockEdgeZones.prefKey(edgeZoneTopOffsetPercentKey, ZoneOrientation.LANDSCAPE),
-            TapLockEdgeZones.DEFAULT_TOP_OFFSET_PERCENT
-        ).toFloat()
-        landscapeEdgeZoneBottomOffsetPercent = prefs.getInt(
-            TapLockEdgeZones.prefKey(edgeZoneBottomOffsetPercentKey, ZoneOrientation.LANDSCAPE),
-            TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT
-        ).toFloat()
-        landscapeCornerZoneSizeDp = prefs.getInt(
-            TapLockEdgeZones.prefKey(cornerZoneSizeDpKey, ZoneOrientation.LANDSCAPE),
             TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
         ).toFloat()
         floatingButtonEnabled = prefs.getBoolean(floatingButtonKey, false)
@@ -558,30 +416,6 @@ fun TapLockScreen() {
                 topRightCornerZoneEnabled = prefs.getBoolean(topRightCornerLockZoneKey, false)
                 bottomLeftCornerZoneEnabled = prefs.getBoolean(bottomLeftCornerLockZoneKey, false)
                 bottomRightCornerZoneEnabled = prefs.getBoolean(bottomRightCornerLockZoneKey, false)
-                landscapeLeftEdgeZoneEnabled = prefs.getBoolean(
-                    TapLockEdgeZones.prefKey(leftEdgeLockZoneKey, ZoneOrientation.LANDSCAPE),
-                    false
-                )
-                landscapeRightEdgeZoneEnabled = prefs.getBoolean(
-                    TapLockEdgeZones.prefKey(rightEdgeLockZoneKey, ZoneOrientation.LANDSCAPE),
-                    false
-                )
-                landscapeTopLeftCornerZoneEnabled = prefs.getBoolean(
-                    TapLockEdgeZones.prefKey(topLeftCornerLockZoneKey, ZoneOrientation.LANDSCAPE),
-                    false
-                )
-                landscapeTopRightCornerZoneEnabled = prefs.getBoolean(
-                    TapLockEdgeZones.prefKey(topRightCornerLockZoneKey, ZoneOrientation.LANDSCAPE),
-                    false
-                )
-                landscapeBottomLeftCornerZoneEnabled = prefs.getBoolean(
-                    TapLockEdgeZones.prefKey(bottomLeftCornerLockZoneKey, ZoneOrientation.LANDSCAPE),
-                    false
-                )
-                landscapeBottomRightCornerZoneEnabled = prefs.getBoolean(
-                    TapLockEdgeZones.prefKey(bottomRightCornerLockZoneKey, ZoneOrientation.LANDSCAPE),
-                    false
-                )
                 edgeZoneWidthDp = prefs.getInt(
                     edgeZoneWidthDpKey,
                     TapLockEdgeZones.DEFAULT_WIDTH_DP
@@ -602,22 +436,6 @@ fun TapLockScreen() {
                 ).toFloat()
                 cornerZoneSizeDp = prefs.getInt(
                     cornerZoneSizeDpKey,
-                    TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
-                ).toFloat()
-                landscapeEdgeZoneWidthDp = prefs.getInt(
-                    TapLockEdgeZones.prefKey(edgeZoneWidthDpKey, ZoneOrientation.LANDSCAPE),
-                    TapLockEdgeZones.DEFAULT_WIDTH_DP
-                ).toFloat()
-                landscapeEdgeZoneTopOffsetPercent = prefs.getInt(
-                    TapLockEdgeZones.prefKey(edgeZoneTopOffsetPercentKey, ZoneOrientation.LANDSCAPE),
-                    TapLockEdgeZones.DEFAULT_TOP_OFFSET_PERCENT
-                ).toFloat()
-                landscapeEdgeZoneBottomOffsetPercent = prefs.getInt(
-                    TapLockEdgeZones.prefKey(edgeZoneBottomOffsetPercentKey, ZoneOrientation.LANDSCAPE),
-                    TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT
-                ).toFloat()
-                landscapeCornerZoneSizeDp = prefs.getInt(
-                    TapLockEdgeZones.prefKey(cornerZoneSizeDpKey, ZoneOrientation.LANDSCAPE),
                     TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
                 ).toFloat()
                 excludedPackages = TapLockAppRules.getExcludedPackages(context)
@@ -821,23 +639,6 @@ fun TapLockScreen() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterChip(
-                                selected = selectedZoneOrientation == ZoneOrientation.PORTRAIT,
-                                onClick = { selectedZoneOrientation = ZoneOrientation.PORTRAIT },
-                                label = { Text(stringResource(R.string.zone_orientation_portrait)) },
-                                modifier = Modifier.testTag("chip_zone_orientation_portrait")
-                            )
-                            FilterChip(
-                                selected = selectedZoneOrientation == ZoneOrientation.LANDSCAPE,
-                                onClick = { selectedZoneOrientation = ZoneOrientation.LANDSCAPE },
-                                label = { Text(stringResource(R.string.zone_orientation_landscape)) },
-                                modifier = Modifier.testTag("chip_zone_orientation_landscape")
-                            )
-                        }
                         Text(
                             stringResource(R.string.edge_zones_subsection_label),
                             style = MaterialTheme.typography.bodyMedium
@@ -966,7 +767,10 @@ fun TapLockScreen() {
                             Switch(
                                 checked = editableTopLeftCornerZoneEnabled,
                                 onCheckedChange = { isChecked ->
-                                    setEditableCornerEnabled(CornerZonePosition.TOP_LEFT, isChecked)
+                                    setEditableCornerEnabled(
+                                        CornerZonePosition.TOP_LEFT,
+                                        isChecked
+                                    )
                                     saveSelectedZoneBoolean(topLeftCornerLockZoneKey, isChecked)
                                 },
                                 enabled = isAccessibilityEnabled,
@@ -983,7 +787,10 @@ fun TapLockScreen() {
                             Switch(
                                 checked = editableTopRightCornerZoneEnabled,
                                 onCheckedChange = { isChecked ->
-                                    setEditableCornerEnabled(CornerZonePosition.TOP_RIGHT, isChecked)
+                                    setEditableCornerEnabled(
+                                        CornerZonePosition.TOP_RIGHT,
+                                        isChecked
+                                    )
                                     saveSelectedZoneBoolean(topRightCornerLockZoneKey, isChecked)
                                 },
                                 enabled = isAccessibilityEnabled,
@@ -1004,7 +811,10 @@ fun TapLockScreen() {
                                         CornerZonePosition.BOTTOM_LEFT,
                                         isChecked
                                     )
-                                    saveSelectedZoneBoolean(bottomLeftCornerLockZoneKey, isChecked)
+                                    saveSelectedZoneBoolean(
+                                        bottomLeftCornerLockZoneKey,
+                                        isChecked
+                                    )
                                 },
                                 enabled = isAccessibilityEnabled,
                                 modifier = Modifier.testTag("switch_bottom_left_corner_zone")
@@ -1024,7 +834,10 @@ fun TapLockScreen() {
                                         CornerZonePosition.BOTTOM_RIGHT,
                                         isChecked
                                     )
-                                    saveSelectedZoneBoolean(bottomRightCornerLockZoneKey, isChecked)
+                                    saveSelectedZoneBoolean(
+                                        bottomRightCornerLockZoneKey,
+                                        isChecked
+                                    )
                                 },
                                 enabled = isAccessibilityEnabled,
                                 modifier = Modifier.testTag("switch_bottom_right_corner_zone")
@@ -1062,7 +875,6 @@ fun TapLockScreen() {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             EdgeZonePreview(
-                                orientation = selectedZoneOrientation,
                                 leftEnabled = editableLeftEdgeZoneEnabled,
                                 rightEnabled = editableRightEdgeZoneEnabled,
                                 edgeWidthDp = editableEdgeZoneWidthDp.toInt(),
@@ -1710,7 +1522,6 @@ fun AppExclusionDialog(
 
 @Composable
 private fun EdgeZonePreview(
-    orientation: ZoneOrientation,
     leftEnabled: Boolean,
     rightEnabled: Boolean,
     edgeWidthDp: Int,
@@ -1741,11 +1552,10 @@ private fun EdgeZonePreview(
     val zoneColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
     val frameColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
     val shape = RoundedCornerShape(24.dp)
-    val previewWidth = if (orientation == ZoneOrientation.PORTRAIT) 120.dp else 220.dp
-    val previewHeight = if (orientation == ZoneOrientation.PORTRAIT) 220.dp else 120.dp
-    val previewVerticalPadding =
-        if (orientation == ZoneOrientation.PORTRAIT) 16.dp else 12.dp
-    val previewInnerHeight = if (orientation == ZoneOrientation.PORTRAIT) 188.dp else 96.dp
+    val previewWidth = 120.dp
+    val previewHeight = 220.dp
+    val previewVerticalPadding = 16.dp
+    val previewInnerHeight = 188.dp
     val topInset = previewInnerHeight * topOffsetFraction
     val bottomInset = previewInnerHeight * bottomOffsetFraction
 

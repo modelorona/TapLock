@@ -1,8 +1,6 @@
 package com.ah.taplock
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TapLockEdgeZonesTest {
@@ -102,26 +100,4 @@ class TapLockEdgeZonesTest {
         assertEquals(28, bottomOffsetPercent)
     }
 
-    @Test
-    fun isPortrait_checksDisplayBounds() {
-        assertTrue(TapLockEdgeZones.isPortrait(1080, 2400))
-        assertTrue(TapLockEdgeZones.isPortrait(1200, 1200))
-        assertFalse(TapLockEdgeZones.isPortrait(2400, 1080))
-    }
-
-    @Test
-    fun orientationForBounds_matchesDisplayShape() {
-        assertEquals(ZoneOrientation.PORTRAIT, TapLockEdgeZones.orientationForBounds(1080, 2400))
-        assertEquals(ZoneOrientation.PORTRAIT, TapLockEdgeZones.orientationForBounds(1200, 1200))
-        assertEquals(ZoneOrientation.LANDSCAPE, TapLockEdgeZones.orientationForBounds(2400, 1080))
-    }
-
-    @Test
-    fun prefKey_onlyAddsSuffixForLandscape() {
-        assertEquals("edge_zone_width_dp", TapLockEdgeZones.prefKey("edge_zone_width_dp", ZoneOrientation.PORTRAIT))
-        assertEquals(
-            "edge_zone_width_dp_landscape",
-            TapLockEdgeZones.prefKey("edge_zone_width_dp", ZoneOrientation.LANDSCAPE)
-        )
-    }
 }
