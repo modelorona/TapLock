@@ -4,8 +4,8 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 
 enum class TapLockWidgetStyle(
-    @StringRes val labelResId: Int,
-    @DrawableRes val backgroundResId: Int
+    @field:StringRes val labelResId: Int,
+    @field:DrawableRes val backgroundResId: Int
 ) {
     TRANSPARENT(
         R.string.widget_style_transparent,

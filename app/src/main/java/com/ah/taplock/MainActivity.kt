@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -116,6 +117,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
+
+private const val TAG = "TapLock"
 
 class MainActivity : ComponentActivity() {
 
@@ -448,7 +451,7 @@ fun TapLockScreen() {
                             restartFloatingButtonServiceIfRunning()
                         }
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.w(TAG, "Failed to update custom widget icon", e)
                     }
                 }
             }
@@ -486,13 +489,19 @@ fun TapLockScreen() {
 
     val excludedAppsSummary = when {
         excludedAppLabels.isEmpty() -> stringResource(R.string.app_exclusions_none)
-        excludedAppLabels.size > 3 -> stringResource(
-            R.string.app_exclusions_summary_more,
+        excludedAppLabels.size > 3 -> pluralStringResource(
+            R.plurals.app_exclusions_summary_more,
+            excludedAppLabels.size - 3,
             excludedAppLabels.take(3).joinToString(", "),
             excludedAppLabels.size - 3
         )
         else -> excludedAppLabels.joinToString(", ")
     }
+    val excludedAppCountSummary = pluralStringResource(
+        R.plurals.app_exclusions_count,
+        excludedPackages.size,
+        excludedPackages.size
+    )
 
     DisposableEffect(Unit) {
         val lifecycleOwner = context as ComponentActivity
@@ -1544,13 +1553,7 @@ fun TapLockScreen() {
                         excludedAppsSummary
                     } else {
                         buildString {
-                            append(
-                                context.resources.getQuantityString(
-                                    R.plurals.app_exclusions_count,
-                                    excludedPackages.size,
-                                    excludedPackages.size
-                                )
-                            )
+                            append(excludedAppCountSummary)
                             append('\n')
                             append(excludedAppsSummary)
                         }

@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.ah.taplock"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.ah.taplock"
         minSdk = 31
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 16
         versionName = "1.12"
 

@@ -23,7 +23,6 @@
     <string name="github_url">https://github.com/modelorona/TapLock</string>
     <string name="required_permissions">Required Permissions</string>
     <string name="accessibility_service">Accessibility Service</string>
-    <string name="settings_label">Settings</string>
     <string name="quick_access_label">Quick Access</string>
     <string name="quick_access_description">Widget, tile, and floating button setup.</string>
     <string name="widget_section_label">Home Screen Widget</string>
@@ -149,7 +148,6 @@
     <string name="bottom_right_corner_lock_zone_label">Bottom Right Corner</string>
     <string name="corner_zone_size_label">Screen corner size: %ddp</string>
     <string name="edge_zone_preview_label">Clickable zone preview</string>
-    <string name="app_exclusions_label">App Exclusions</string>
     <string name="app_exclusions_description">Disable TapLock while these apps are open.</string>
     <string name="app_exclusions_button">Choose Apps</string>
     <string name="app_exclusions_none">TapLock is active in all apps.</string>
@@ -157,7 +155,10 @@
         <item quantity="one">Disabled in %d app</item>
         <item quantity="other">Disabled in %d apps</item>
     </plurals>
-    <string name="app_exclusions_summary_more">%1$s, and %2$d more</string>
+    <plurals name="app_exclusions_summary_more">
+        <item quantity="one">%1$s, and %2$d more</item>
+        <item quantity="other">%1$s, and %2$d more</item>
+    </plurals>
     <string name="app_exclusions_dialog_title">Choose Apps</string>
     <string name="app_exclusions_search_label">Search apps</string>
     <string name="app_exclusions_loading">Loading apps…</string>
