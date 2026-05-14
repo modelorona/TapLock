@@ -47,7 +47,7 @@
     <string name="status_bar_double_tap_description">Double tap on the status bar to lock the screen.</string>
     <string name="lock_screen_double_tap">lock_screen_double_tap</string>
     <string name="lock_screen_double_tap_label">Double-Tap Lock Screen to Lock</string>
-    <string name="lock_screen_double_tap_description">When the screen is locked, double-tap on the top two-thirds of the screen to lock.</string>
+    <string name="lock_screen_double_tap_description">When the screen is locked, double-tap inside the configured area to lock.</string>
     <string name="left_edge_lock_zone">left_edge_lock_zone</string>
     <string name="right_edge_lock_zone">right_edge_lock_zone</string>
     <string name="top_left_corner_lock_zone">top_left_corner_lock_zone</string>
@@ -130,7 +130,9 @@
     <string name="quick_settings_tile_failed_toast">Couldn\'t add the Quick Settings tile right now</string>
     <string name="quick_settings_tile_manual_toast">Add TapLock from the Quick Settings edit screen on this Android version.</string>
     <string name="lock_zone_percent">lock_zone_percent</string>
+    <string name="lock_zone_top_offset_percent">lock_zone_top_offset_percent</string>
     <string name="lock_zone_label">Lock screen tap zone: %d%%</string>
+    <string name="lock_zone_top_offset_label">Top offset: %d%%</string>
     <string name="lock_zone_preview_label">Active area preview</string>
     <string name="lock_zone_preview_button">Highlight active area</string>
     <string name="edge_zones_label">Screen Edge And Corner Lock Zones</string>

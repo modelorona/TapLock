@@ -153,6 +153,7 @@ fun TapLockScreen() {
     val floatingButtonKey = stringResource(R.string.floating_button_enabled)
     val floatingButtonSizeDpKey = stringResource(R.string.floating_button_size_dp)
     val floatingButtonOpacityPercentKey = stringResource(R.string.floating_button_opacity_percent)
+    val lockZoneTopOffsetPercentKey = stringResource(R.string.lock_zone_top_offset_percent)
 
     var showDialog by remember { mutableStateOf(false) }
 
@@ -183,7 +184,10 @@ fun TapLockScreen() {
     var onboardingStep by remember { mutableIntStateOf(0) }
     var lockDelayMs by remember { mutableIntStateOf(0) }
     var lockCount by remember { mutableIntStateOf(0) }
-    var lockZonePercent by remember { mutableFloatStateOf(66f) }
+    var lockZonePercent by remember { mutableFloatStateOf(TapLockLockZone.DEFAULT_PERCENT.toFloat()) }
+    var lockZoneTopOffsetPercent by remember {
+        mutableFloatStateOf(TapLockLockZone.DEFAULT_TOP_OFFSET_PERCENT.toFloat())
+    }
     var edgeZoneWidthDp by remember {
         mutableFloatStateOf(TapLockEdgeZones.DEFAULT_WIDTH_DP.toFloat())
     }
@@ -216,11 +220,13 @@ fun TapLockScreen() {
     val edgeBottomOffsetSliderInteraction = remember { MutableInteractionSource() }
     val cornerSizeSliderInteraction = remember { MutableInteractionSource() }
     val lockZoneSliderInteraction = remember { MutableInteractionSource() }
+    val lockZoneTopOffsetSliderInteraction = remember { MutableInteractionSource() }
     val isEdgeWidthSliderDragged by edgeWidthSliderInteraction.collectIsDraggedAsState()
     val isEdgeTopOffsetSliderDragged by edgeTopOffsetSliderInteraction.collectIsDraggedAsState()
     val isEdgeBottomOffsetSliderDragged by edgeBottomOffsetSliderInteraction.collectIsDraggedAsState()
     val isCornerSizeSliderDragged by cornerSizeSliderInteraction.collectIsDraggedAsState()
     val isLockZoneSliderDragged by lockZoneSliderInteraction.collectIsDraggedAsState()
+    val isLockZoneTopOffsetSliderDragged by lockZoneTopOffsetSliderInteraction.collectIsDraggedAsState()
     var showLockZonePreviewOverlay by remember { mutableStateOf(false) }
     val editableLeftEdgeZoneEnabled = leftEdgeZoneEnabled
     val editableRightEdgeZoneEnabled = rightEdgeZoneEnabled
@@ -246,7 +252,7 @@ fun TapLockScreen() {
             isCornerSizeSliderDragged
         )
     val showLockZoneLiveOverlay = lockScreenDoubleTap &&
-        (isLockZoneSliderDragged || showLockZonePreviewOverlay)
+        (isLockZoneSliderDragged || isLockZoneTopOffsetSliderDragged || showLockZonePreviewOverlay)
 
     LaunchedEffect(showLockZonePreviewOverlay) {
         if (showLockZonePreviewOverlay) {
@@ -263,6 +269,27 @@ fun TapLockScreen() {
     fun saveSelectedZoneInt(baseKey: String, value: Int) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
             .edit { putInt(baseKey, value) }
+    }
+
+    fun syncLockZoneState(
+        zonePercent: Int = lockZonePercent.toInt(),
+        topOffsetPercent: Int = lockZoneTopOffsetPercent.toInt()
+    ) {
+        val clampedZonePercent = TapLockLockZone.clampPercent(zonePercent)
+        val clampedTopOffsetPercent = TapLockLockZone.clampTopOffsetPercent(
+            topOffsetPercent,
+            clampedZonePercent
+        )
+        lockZonePercent = clampedZonePercent.toFloat()
+        lockZoneTopOffsetPercent = clampedTopOffsetPercent.toFloat()
+    }
+
+    fun persistLockZoneSettings() {
+        syncLockZoneState()
+        context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE).edit {
+            putInt(lockZonePercentKey, lockZonePercent.toInt())
+            putInt(lockZoneTopOffsetPercentKey, lockZoneTopOffsetPercent.toInt())
+        }
     }
 
     fun setEditableEdgeEnabled(side: EdgeZoneSide, isEnabled: Boolean) {
@@ -366,7 +393,13 @@ fun TapLockScreen() {
         showOnboarding = !prefs.getBoolean(hasCompletedOnboardingKey, false)
         lockDelayMs = prefs.getInt(lockDelayMsKey, 0)
         lockCount = prefs.getInt(lockCountKey, 0)
-        lockZonePercent = prefs.getInt(lockZonePercentKey, 66).toFloat()
+        syncLockZoneState(
+            zonePercent = prefs.getInt(lockZonePercentKey, TapLockLockZone.DEFAULT_PERCENT),
+            topOffsetPercent = prefs.getInt(
+                lockZoneTopOffsetPercentKey,
+                TapLockLockZone.DEFAULT_TOP_OFFSET_PERCENT
+            )
+        )
         edgeZoneWidthDp = prefs.getInt(
             edgeZoneWidthDpKey,
             TapLockEdgeZones.DEFAULT_WIDTH_DP
@@ -1100,29 +1133,49 @@ fun TapLockScreen() {
                 }
 
                 if (lockScreenDoubleTap) {
-                    val lockZoneKey = stringResource(R.string.lock_zone_percent)
+                    val maxLockZoneTopOffsetPercent =
+                        TapLockLockZone.maxTopOffsetPercent(lockZonePercent.toInt())
                     Text(
                         stringResource(R.string.lock_zone_label, lockZonePercent.toInt()),
                         style = MaterialTheme.typography.bodySmall
                     )
                     Slider(
                         value = lockZonePercent,
-                        onValueChange = { lockZonePercent = it },
-                        onValueChangeFinished = {
-                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                .edit { putInt(lockZoneKey, lockZonePercent.toInt()) }
-                        },
-                        valueRange = 20f..100f,
+                        onValueChange = { syncLockZoneState(zonePercent = it.toInt()) },
+                        onValueChangeFinished = { persistLockZoneSettings() },
+                        valueRange = TapLockLockZone.MIN_PERCENT.toFloat()..
+                            TapLockLockZone.MAX_PERCENT.toFloat(),
                         steps = 15,
                         interactionSource = lockZoneSliderInteraction,
                         modifier = Modifier.testTag("slider_lock_zone")
                     )
                     Text(
+                        stringResource(
+                            R.string.lock_zone_top_offset_label,
+                            lockZoneTopOffsetPercent.toInt()
+                        ),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    if (maxLockZoneTopOffsetPercent > 0) {
+                        Slider(
+                            value = lockZoneTopOffsetPercent,
+                            onValueChange = { syncLockZoneState(topOffsetPercent = it.toInt()) },
+                            onValueChangeFinished = { persistLockZoneSettings() },
+                            valueRange = TapLockLockZone.MIN_TOP_OFFSET_PERCENT.toFloat()..
+                                maxLockZoneTopOffsetPercent.toFloat(),
+                            interactionSource = lockZoneTopOffsetSliderInteraction,
+                            modifier = Modifier.testTag("slider_lock_zone_top_offset")
+                        )
+                    }
+                    Text(
                         stringResource(R.string.lock_zone_preview_label),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    LockScreenZonePreview(lockZonePercent = lockZonePercent.toInt())
+                    LockScreenZonePreview(
+                        lockZonePercent = lockZonePercent.toInt(),
+                        lockZoneTopOffsetPercent = lockZoneTopOffsetPercent.toInt()
+                    )
                     Button(
                         onClick = { showLockZonePreviewOverlay = true },
                         modifier = Modifier.testTag("button_lock_zone_preview")
@@ -1571,7 +1624,10 @@ fun TapLockScreen() {
             }
 
             if (showLockZoneLiveOverlay) {
-                LockScreenZoneLiveOverlay(lockZonePercent = lockZonePercent.toInt())
+                LockScreenZoneLiveOverlay(
+                    lockZonePercent = lockZonePercent.toInt(),
+                    lockZoneTopOffsetPercent = lockZoneTopOffsetPercent.toInt()
+                )
             }
 
             if (showEdgeZoneLiveOverlay) {

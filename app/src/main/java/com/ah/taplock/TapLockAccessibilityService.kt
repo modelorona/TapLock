@@ -151,6 +151,10 @@ class TapLockAccessibilityService : AccessibilityService() {
                 key == getString(R.string.lock_zone_percent) -> {
                     if (statusBarOverlay != null) updateOverlayForLockScreen()
                 }
+
+                key == getString(R.string.lock_zone_top_offset_percent) -> {
+                    if (statusBarOverlay != null) updateOverlayForLockScreen()
+                }
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
@@ -640,20 +644,22 @@ class TapLockAccessibilityService : AccessibilityService() {
 
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val params = overlay.layoutParams as WindowManager.LayoutParams
-        val newHeight = if (locked && lockScreenEnabled) {
-            getLockScreenOverlayHeight()
+        val (newHeight, newY) = if (locked && lockScreenEnabled) {
+            val frame = getLockScreenOverlayFrame()
+            frame.heightPx to frame.yPx
         } else if (statusBarEnabled) {
-            getStatusBarHeight()
+            getStatusBarHeight() to 0
         } else {
             // Only lock screen feature enabled, not on lock screen — keep minimal
-            getStatusBarHeight()
+            getStatusBarHeight() to 0
         }
 
-        if (params.height != newHeight) {
+        if (params.height != newHeight || params.y != newY) {
             params.height = newHeight
+            params.y = newY
             wm.updateViewLayout(overlay, params)
             doubleTapDetector.reset()
-            Log.d(TAG, "overlay: lockScreen=$locked, height=${newHeight}px")
+            Log.d(TAG, "overlay: lockScreen=$locked, height=${newHeight}px, y=${newY}px")
         }
 
         if (locked != wasOnLockScreen) {
@@ -663,11 +669,21 @@ class TapLockAccessibilityService : AccessibilityService() {
         updateInteractiveZoneOverlays()
     }
 
-    private fun getLockScreenOverlayHeight(): Int {
+    private fun getLockScreenOverlayFrame(): LockZoneFrame {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val screenHeight = wm.currentWindowMetrics.bounds.height()
-        val percent = getPrefs().getInt(getString(R.string.lock_zone_percent), 66)
-        return (screenHeight * percent) / 100
+        val prefs = getPrefs()
+        return TapLockLockZone.buildFrame(
+            screenHeightPx = screenHeight,
+            zonePercent = prefs.getInt(
+                getString(R.string.lock_zone_percent),
+                TapLockLockZone.DEFAULT_PERCENT
+            ),
+            topOffsetPercent = prefs.getInt(
+                getString(R.string.lock_zone_top_offset_percent),
+                TapLockLockZone.DEFAULT_TOP_OFFSET_PERCENT
+            )
+        )
     }
 
     private fun handleLockScreenTap(tapTimeMs: Long, x: Float, y: Float) {

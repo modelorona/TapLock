@@ -18,17 +18,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
-private fun lockZoneFraction(lockZonePercent: Int): Float = (lockZonePercent / 100f).coerceIn(0.2f, 1f)
-
 @Composable
 fun LockScreenZonePreview(
-    lockZonePercent: Int
+    lockZonePercent: Int,
+    lockZoneTopOffsetPercent: Int
 ) {
+    val clampedLockZonePercent = TapLockLockZone.clampPercent(lockZonePercent)
+    val clampedTopOffsetPercent = TapLockLockZone.clampTopOffsetPercent(
+        lockZoneTopOffsetPercent,
+        clampedLockZonePercent
+    )
     val previewWidth = 120.dp
     val previewHeight = 220.dp
     val previewVerticalPadding = 16.dp
     val previewInnerHeight = 188.dp
-    val highlightedHeight = previewInnerHeight * lockZoneFraction(lockZonePercent)
+    val highlightedHeight = previewInnerHeight * (clampedLockZonePercent / 100f)
+    val topInset = previewInnerHeight * (clampedTopOffsetPercent / 100f)
     val frameColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.6f)
     val zoneColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
     val shape = RoundedCornerShape(24.dp)
@@ -57,6 +62,7 @@ fun LockScreenZonePreview(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
+                        .padding(top = topInset)
                         .fillMaxWidth()
                         .height(highlightedHeight)
                         .background(
@@ -71,14 +77,21 @@ fun LockScreenZonePreview(
 
 @Composable
 fun LockScreenZoneLiveOverlay(
-    lockZonePercent: Int
+    lockZonePercent: Int,
+    lockZoneTopOffsetPercent: Int
 ) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .testTag("lock_zone_live_overlay")
     ) {
-        val highlightedHeight = maxHeight * lockZoneFraction(lockZonePercent)
+        val clampedLockZonePercent = TapLockLockZone.clampPercent(lockZonePercent)
+        val clampedTopOffsetPercent = TapLockLockZone.clampTopOffsetPercent(
+            lockZoneTopOffsetPercent,
+            clampedLockZonePercent
+        )
+        val highlightedHeight = maxHeight * (clampedLockZonePercent / 100f)
+        val topInset = maxHeight * (clampedTopOffsetPercent / 100f)
         val zoneColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
         val zoneBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
 
@@ -91,6 +104,7 @@ fun LockScreenZoneLiveOverlay(
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
+                .padding(top = topInset)
                 .fillMaxWidth()
                 .height(highlightedHeight)
                 .background(

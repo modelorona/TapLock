@@ -285,6 +285,26 @@ class SettingsUiTest {
     }
 
     @Test
+    fun updateLockZoneTopOffset_updatesPref() {
+        getPrefs().edit()
+            .putBoolean(context.getString(R.string.lock_screen_double_tap), true)
+            .commit()
+
+        setScreenContent()
+
+        composeTestRule.onNodeWithTag("slider_lock_zone_top_offset")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                assertTrue(setProgress(12f))
+            }
+
+        assertEquals(
+            12,
+            getPrefs().getInt(context.getString(R.string.lock_zone_top_offset_percent), -1)
+        )
+    }
+
+    @Test
     fun highlightActiveArea_showsOverlayPreview() {
         getPrefs().edit()
             .putBoolean(context.getString(R.string.lock_screen_double_tap), true)
