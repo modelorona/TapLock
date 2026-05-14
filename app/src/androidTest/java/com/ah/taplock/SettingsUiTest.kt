@@ -265,6 +265,42 @@ class SettingsUiTest {
     }
 
     @Test
+    fun updateLockZone_updatesPref() {
+        getPrefs().edit()
+            .putBoolean(context.getString(R.string.lock_screen_double_tap), true)
+            .commit()
+
+        setScreenContent()
+
+        composeTestRule.onNodeWithTag("slider_lock_zone")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+                assertTrue(setProgress(80f))
+            }
+
+        assertEquals(
+            80,
+            getPrefs().getInt(context.getString(R.string.lock_zone_percent), 0)
+        )
+    }
+
+    @Test
+    fun highlightActiveArea_showsOverlayPreview() {
+        getPrefs().edit()
+            .putBoolean(context.getString(R.string.lock_screen_double_tap), true)
+            .commit()
+
+        setScreenContent()
+
+        composeTestRule.onNodeWithTag("button_lock_zone_preview")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("lock_zone_live_overlay")
+            .assertExists()
+    }
+
+    @Test
     fun updateTimeout_updatesPref() {
         composeTestRule.onNode(hasSetTextAction())
             .performScrollTo()

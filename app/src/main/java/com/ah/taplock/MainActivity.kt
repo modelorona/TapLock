@@ -91,6 +91,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ah.taplock.ui.theme.TapLockTheme
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -214,10 +215,13 @@ fun TapLockScreen() {
     val edgeTopOffsetSliderInteraction = remember { MutableInteractionSource() }
     val edgeBottomOffsetSliderInteraction = remember { MutableInteractionSource() }
     val cornerSizeSliderInteraction = remember { MutableInteractionSource() }
+    val lockZoneSliderInteraction = remember { MutableInteractionSource() }
     val isEdgeWidthSliderDragged by edgeWidthSliderInteraction.collectIsDraggedAsState()
     val isEdgeTopOffsetSliderDragged by edgeTopOffsetSliderInteraction.collectIsDraggedAsState()
     val isEdgeBottomOffsetSliderDragged by edgeBottomOffsetSliderInteraction.collectIsDraggedAsState()
     val isCornerSizeSliderDragged by cornerSizeSliderInteraction.collectIsDraggedAsState()
+    val isLockZoneSliderDragged by lockZoneSliderInteraction.collectIsDraggedAsState()
+    var showLockZonePreviewOverlay by remember { mutableStateOf(false) }
     val editableLeftEdgeZoneEnabled = leftEdgeZoneEnabled
     val editableRightEdgeZoneEnabled = rightEdgeZoneEnabled
     val editableTopLeftCornerZoneEnabled = topLeftCornerZoneEnabled
@@ -233,7 +237,7 @@ fun TapLockScreen() {
         editableTopRightCornerZoneEnabled ||
         editableBottomLeftCornerZoneEnabled ||
         editableBottomRightCornerZoneEnabled
-    val showLiveZoneOverlay = (
+    val showEdgeZoneLiveOverlay = (
         anyEdgeZoneEnabled || anyCornerZoneEnabled
         ) && (
         isEdgeWidthSliderDragged ||
@@ -241,6 +245,15 @@ fun TapLockScreen() {
             isEdgeBottomOffsetSliderDragged ||
             isCornerSizeSliderDragged
         )
+    val showLockZoneLiveOverlay = lockScreenDoubleTap &&
+        (isLockZoneSliderDragged || showLockZonePreviewOverlay)
+
+    LaunchedEffect(showLockZonePreviewOverlay) {
+        if (showLockZonePreviewOverlay) {
+            delay(1500)
+            showLockZonePreviewOverlay = false
+        }
+    }
 
     fun saveSelectedZoneBoolean(baseKey: String, value: Boolean) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -1101,8 +1114,21 @@ fun TapLockScreen() {
                         },
                         valueRange = 20f..100f,
                         steps = 15,
+                        interactionSource = lockZoneSliderInteraction,
                         modifier = Modifier.testTag("slider_lock_zone")
                     )
+                    Text(
+                        stringResource(R.string.lock_zone_preview_label),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    LockScreenZonePreview(lockZonePercent = lockZonePercent.toInt())
+                    Button(
+                        onClick = { showLockZonePreviewOverlay = true },
+                        modifier = Modifier.testTag("button_lock_zone_preview")
+                    ) {
+                        Text(stringResource(R.string.lock_zone_preview_button))
+                    }
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1544,7 +1570,11 @@ fun TapLockScreen() {
 
             }
 
-            if (showLiveZoneOverlay) {
+            if (showLockZoneLiveOverlay) {
+                LockScreenZoneLiveOverlay(lockZonePercent = lockZonePercent.toInt())
+            }
+
+            if (showEdgeZoneLiveOverlay) {
                 EdgeZoneLiveOverlay(
                     leftEnabled = editableLeftEdgeZoneEnabled,
                     rightEnabled = editableRightEdgeZoneEnabled,

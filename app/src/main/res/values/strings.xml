@@ -131,6 +131,8 @@
     <string name="quick_settings_tile_manual_toast">Add TapLock from the Quick Settings edit screen on this Android version.</string>
     <string name="lock_zone_percent">lock_zone_percent</string>
     <string name="lock_zone_label">Lock screen tap zone: %d%%</string>
+    <string name="lock_zone_preview_label">Active area preview</string>
+    <string name="lock_zone_preview_button">Highlight active area</string>
     <string name="edge_zones_label">Screen Edge And Corner Lock Zones</string>
     <string name="edge_zones_description">Double-tap enabled screen edges or corners to lock. Swiping inward from an enabled screen edge still goes Back.</string>
     <string name="edge_zones_portrait_only">These settings apply in both portrait and landscape.</string>
