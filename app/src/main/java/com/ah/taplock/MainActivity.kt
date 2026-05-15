@@ -718,12 +718,22 @@ fun TapLockScreen() {
                         )
                         Button(
                             onClick = {
-                                context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                                val intent = if (isBatteryOptimized) {
+                                    TapLockBatteryOptimization.requestIntent(context.packageName)
+                                } else {
+                                    TapLockBatteryOptimization.settingsIntent()
+                                }
+                                val fallbackIntent = TapLockBatteryOptimization.settingsIntent()
+                                runCatching {
+                                    context.startActivity(intent)
+                                }.onFailure {
+                                    context.startActivity(fallbackIntent)
+                                }
                             }
                         ) {
                             Text(
                                 if (isBatteryOptimized) stringResource(R.string.battery_action_fix)
-                                else stringResource(R.string.battery_action_restrict)
+                                else stringResource(R.string.battery_action_manage)
                             )
                         }
                     }
