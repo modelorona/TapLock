@@ -11,8 +11,8 @@ android {
         applicationId = "com.ah.taplock"
         minSdk = 31
         targetSdk = 37
-        versionCode = 16
-        versionName = "1.12"
+        versionCode = 17
+        versionName = "1.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
