@@ -25,6 +25,7 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "TapLock"
+        private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
         @Suppress("StaticFieldLeak") // Intentional: cleared in onUnbind/onDestroy
         var instance: TapLockAccessibilityService? = null
             private set
@@ -591,11 +592,14 @@ class TapLockAccessibilityService : AccessibilityService() {
         val statusBarEnabled = prefs.getBoolean(getString(R.string.status_bar_double_tap), false)
         val lockScreenEnabled = prefs.getBoolean(getString(R.string.lock_screen_double_tap), false)
         val appExcluded = isCurrentAppExcluded()
+        val notificationShadeExpanded = isNotificationShadeExpanded()
 
         // Disable touch when: in a fullscreen app (no status bar) and not on lock screen,
         // when the current app is excluded, or when only lock screen feature is enabled
-        // and we're not on the lock screen.
+        // and we're not on the lock screen. Also disable touch while the notification
+        // shade is expanded so System UI receives swipe-up gestures directly.
         val shouldDisableTouch = when {
+            notificationShadeExpanded -> true
             isOnLockScreen && lockScreenEnabled -> false
             appExcluded -> true
             !isStatusBarVisible() -> true
@@ -615,7 +619,11 @@ class TapLockAccessibilityService : AccessibilityService() {
             params.flags = newFlags
             wm.updateViewLayout(overlay, params)
             if (shouldDisableTouch) doubleTapDetector.reset()
-            Log.d(TAG, "overlay: touchDisabled=$shouldDisableTouch, lockScreen=$isOnLockScreen")
+            Log.d(
+                TAG,
+                "overlay: touchDisabled=$shouldDisableTouch, " +
+                    "lockScreen=$isOnLockScreen, shade=$notificationShadeExpanded"
+            )
         }
     }
 
@@ -751,6 +759,24 @@ class TapLockAccessibilityService : AccessibilityService() {
                     it.top == 0 && it.height() > 0
                 }
         }
+    }
+
+    private fun isNotificationShadeExpanded(): Boolean {
+        return windows.any { window ->
+            if (window.type != AccessibilityWindowInfo.TYPE_SYSTEM) return@any false
+            val root = window.root ?: return@any false
+            if (root.packageName?.toString() != SYSTEM_UI_PACKAGE) return@any false
+
+            val className = root.className?.toString().orEmpty()
+            val title = window.title?.toString().orEmpty()
+            isNotificationShadeIdentifier(className) || isNotificationShadeIdentifier(title)
+        }
+    }
+
+    private fun isNotificationShadeIdentifier(value: String): Boolean {
+        return value.contains("NotificationShade", ignoreCase = true) ||
+            value.contains("NotificationPanel", ignoreCase = true) ||
+            value.contains("QuickSettings", ignoreCase = true)
     }
 
     private fun removeStatusBarOverlay() {
