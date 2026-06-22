@@ -5,15 +5,19 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.database.ContentObserver
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
+import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -530,6 +534,36 @@ fun TapLockScreen() {
 
     DisposableEffect(Unit) {
         val lifecycleOwner = context as ComponentActivity
+        val accessibilityManager =
+            context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+
+        val refreshAccessibilityState = {
+            isAccessibilityEnabled = isAccessibilityEnabled(context)
+        }
+
+        val accessibilityObserver =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val listener =
+                    AccessibilityManager.AccessibilityServicesStateChangeListener {
+                        refreshAccessibilityState()
+                    }
+                accessibilityManager.addAccessibilityServicesStateChangeListener(listener)
+                listener
+            } else {
+                val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+                    override fun onChange(selfChange: Boolean) {
+                        refreshAccessibilityState()
+                    }
+                }
+                context.contentResolver.registerContentObserver(
+                    Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+                    false,
+                    observer
+                )
+                observer
+            }
+        refreshAccessibilityState()
+
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityEnabled = isAccessibilityEnabled(context)
@@ -600,6 +634,13 @@ fun TapLockScreen() {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                accessibilityManager.removeAccessibilityServicesStateChangeListener(
+                    accessibilityObserver as AccessibilityManager.AccessibilityServicesStateChangeListener
+                )
+            } else {
+                context.contentResolver.unregisterContentObserver(accessibilityObserver as ContentObserver)
+            }
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }

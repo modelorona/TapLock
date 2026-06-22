@@ -1,13 +1,19 @@
 package com.ah.taplock
 
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.ComponentName
 import android.content.Context
-import android.provider.Settings
+import android.view.accessibility.AccessibilityManager
 
 fun isAccessibilityEnabled(context: Context): Boolean {
-    val enabledServices = Settings.Secure.getString(
-        context.contentResolver,
-        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-    )
-    val serviceName = "${context.packageName}/${TapLockAccessibilityService::class.java.name}"
-    return enabledServices?.contains(serviceName) == true
+    val accessibilityManager =
+        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    val serviceComponent = ComponentName(context, TapLockAccessibilityService::class.java)
+
+    return accessibilityManager
+        .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        .any { serviceInfo ->
+            val resolveInfo = serviceInfo.resolveInfo.serviceInfo
+            ComponentName(resolveInfo.packageName, resolveInfo.name) == serviceComponent
+        }
 }
