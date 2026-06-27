@@ -32,10 +32,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -101,6 +99,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "TapLock"
 
@@ -133,6 +132,7 @@ fun TapLockScreen() {
     val widgetStyleKey = stringResource(R.string.widget_style)
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
     val statusBarDoubleTapKey = stringResource(R.string.status_bar_double_tap)
+    val statusBarCameraAreaOnlyKey = stringResource(R.string.status_bar_camera_area_only)
     val lockScreenDoubleTapKey = stringResource(R.string.lock_screen_double_tap)
     val leftEdgeLockZoneKey = stringResource(R.string.left_edge_lock_zone)
     val rightEdgeLockZoneKey = stringResource(R.string.right_edge_lock_zone)
@@ -176,6 +176,7 @@ fun TapLockScreen() {
     var vibrateOnLock by remember { mutableStateOf(true) }
     var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
     var statusBarDoubleTap by remember { mutableStateOf(false) }
+    var statusBarCameraAreaOnly by remember { mutableStateOf(false) }
     var lockScreenDoubleTap by remember { mutableStateOf(false) }
     var leftEdgeZoneEnabled by remember { mutableStateOf(false) }
     var rightEdgeZoneEnabled by remember { mutableStateOf(false) }
@@ -260,7 +261,7 @@ fun TapLockScreen() {
 
     LaunchedEffect(showLockZonePreviewOverlay) {
         if (showLockZonePreviewOverlay) {
-            delay(1500)
+            delay(1500.milliseconds)
             showLockZonePreviewOverlay = false
         }
     }
@@ -386,6 +387,7 @@ fun TapLockScreen() {
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
         vibrationPattern = VibrationHelper.fromPrefs(context)
         statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
+        statusBarCameraAreaOnly = prefs.getBoolean(statusBarCameraAreaOnlyKey, false)
         lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
         leftEdgeZoneEnabled = prefs.getBoolean(leftEdgeLockZoneKey, false)
         rightEdgeZoneEnabled = prefs.getBoolean(rightEdgeLockZoneKey, false)
@@ -1006,8 +1008,6 @@ fun TapLockScreen() {
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1152,6 +1152,37 @@ fun TapLockScreen() {
                         enabled = isAccessibilityEnabled,
                         modifier = Modifier.testTag("switch_status_bar")
                     )
+                }
+
+                if (statusBarDoubleTap) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.status_bar_camera_area_only_label),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                stringResource(R.string.status_bar_camera_area_only_description),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Switch(
+                            checked = statusBarCameraAreaOnly,
+                            onCheckedChange = { isChecked ->
+                                statusBarCameraAreaOnly = isChecked
+                                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                    .edit {
+                                        putBoolean(statusBarCameraAreaOnlyKey, isChecked)
+                                    }
+                            },
+                            enabled = isAccessibilityEnabled,
+                            modifier = Modifier.testTag("switch_status_bar_camera_area")
+                        )
+                    }
                 }
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

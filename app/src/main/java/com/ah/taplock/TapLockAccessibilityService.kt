@@ -49,6 +49,13 @@ class TapLockAccessibilityService : AccessibilityService() {
     private var isOnLockScreen = false
     private var currentForegroundPackage: String? = null
 
+    private data class StatusBarOverlayFrame(
+        val widthPx: Int,
+        val heightPx: Int,
+        val xPx: Int,
+        val yPx: Int
+    )
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
@@ -144,6 +151,10 @@ class TapLockAccessibilityService : AccessibilityService() {
             when {
                 key == getString(R.string.status_bar_double_tap) ||
                     key == getString(R.string.lock_screen_double_tap) -> updateOverlay()
+
+                key == getString(R.string.status_bar_camera_area_only) -> {
+                    if (statusBarOverlay != null) updateOverlayForLockScreen()
+                }
 
                 isZonePreferenceKey(key) -> updateInteractiveZoneOverlays()
 
@@ -247,15 +258,18 @@ class TapLockAccessibilityService : AccessibilityService() {
 
         val statusBarHeight = getStatusBarHeight()
 
+        val statusBarFrame = getUnlockedStatusBarOverlayFrame(statusBarHeight)
         val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            statusBarHeight,
+            statusBarFrame.widthPx,
+            statusBarFrame.heightPx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP
+            gravity = Gravity.TOP or Gravity.START
+            x = statusBarFrame.xPx
+            y = statusBarFrame.yPx
             layoutInDisplayCutoutMode =
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
         }
@@ -652,22 +666,43 @@ class TapLockAccessibilityService : AccessibilityService() {
 
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val params = overlay.layoutParams as WindowManager.LayoutParams
-        val (newHeight, newY) = if (locked && lockScreenEnabled) {
+        val newFrame = if (locked && lockScreenEnabled) {
             val frame = getLockScreenOverlayFrame()
-            frame.heightPx to frame.yPx
+            StatusBarOverlayFrame(
+                widthPx = WindowManager.LayoutParams.MATCH_PARENT,
+                heightPx = frame.heightPx,
+                xPx = 0,
+                yPx = frame.yPx
+            )
         } else if (statusBarEnabled) {
-            getStatusBarHeight() to 0
+            getUnlockedStatusBarOverlayFrame()
         } else {
             // Only lock screen feature enabled, not on lock screen — keep minimal
-            getStatusBarHeight() to 0
+            StatusBarOverlayFrame(
+                widthPx = WindowManager.LayoutParams.MATCH_PARENT,
+                heightPx = getStatusBarHeight(),
+                xPx = 0,
+                yPx = 0
+            )
         }
 
-        if (params.height != newHeight || params.y != newY) {
-            params.height = newHeight
-            params.y = newY
+        if (
+            params.width != newFrame.widthPx ||
+            params.height != newFrame.heightPx ||
+            params.x != newFrame.xPx ||
+            params.y != newFrame.yPx
+        ) {
+            params.width = newFrame.widthPx
+            params.height = newFrame.heightPx
+            params.x = newFrame.xPx
+            params.y = newFrame.yPx
             wm.updateViewLayout(overlay, params)
             doubleTapDetector.reset()
-            Log.d(TAG, "overlay: lockScreen=$locked, height=${newHeight}px, y=${newY}px")
+            Log.d(
+                TAG,
+                "overlay: lockScreen=$locked, width=${newFrame.widthPx}px, " +
+                    "height=${newFrame.heightPx}px, x=${newFrame.xPx}px, y=${newFrame.yPx}px"
+            )
         }
 
         if (locked != wasOnLockScreen) {
@@ -691,6 +726,51 @@ class TapLockAccessibilityService : AccessibilityService() {
                 getString(R.string.lock_zone_top_offset_percent),
                 TapLockLockZone.DEFAULT_TOP_OFFSET_PERCENT
             )
+        )
+    }
+
+    private fun getUnlockedStatusBarOverlayFrame(
+        statusBarHeight: Int = getStatusBarHeight()
+    ): StatusBarOverlayFrame {
+        val prefs = getPrefs()
+        val cameraAreaOnly = prefs.getBoolean(
+            getString(R.string.status_bar_camera_area_only),
+            false
+        )
+        if (!cameraAreaOnly) {
+            return StatusBarOverlayFrame(
+                widthPx = WindowManager.LayoutParams.MATCH_PARENT,
+                heightPx = statusBarHeight,
+                xPx = 0,
+                yPx = 0
+            )
+        }
+
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val metrics = wm.currentWindowMetrics
+        val cutoutBounds = metrics.windowInsets.displayCutout
+            ?.boundingRects
+            .orEmpty()
+            .map { rect ->
+                StatusBarCutoutBounds(
+                    leftPx = rect.left,
+                    topPx = rect.top,
+                    rightPx = rect.right,
+                    bottomPx = rect.bottom
+                )
+            }
+        val frame = TapLockStatusBarZone.buildCameraAreaFrame(
+            screenWidthPx = metrics.bounds.width(),
+            statusBarHeightPx = statusBarHeight,
+            cutoutBounds = cutoutBounds,
+            density = resources.displayMetrics.density
+        )
+
+        return StatusBarOverlayFrame(
+            widthPx = frame.widthPx,
+            heightPx = statusBarHeight,
+            xPx = frame.xPx,
+            yPx = 0
         )
     }
 

@@ -164,6 +164,26 @@ class SettingsUiTest {
     }
 
     @Test
+    fun toggleStatusBarCameraAreaOnly_updatesPref() {
+        getPrefs().edit()
+            .putBoolean(context.getString(R.string.status_bar_double_tap), true)
+            .commit()
+
+        setScreenContent()
+
+        composeTestRule.onNodeWithTag("switch_status_bar_camera_area")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.onNodeWithTag("switch_status_bar_camera_area")
+            .assertIsOn()
+
+        assertTrue(
+            getPrefs().getBoolean(context.getString(R.string.status_bar_camera_area_only), false)
+        )
+    }
+
+    @Test
     fun toggleLeftEdgeZone_updatesPref() {
         composeTestRule.onNodeWithTag("switch_left_edge_zone")
             .performScrollTo()

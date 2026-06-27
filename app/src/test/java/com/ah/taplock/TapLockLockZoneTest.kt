@@ -40,4 +40,57 @@ class TapLockLockZoneTest {
         assertEquals(1920, frame.heightPx)
         assertEquals(480, frame.yPx)
     }
+
+    @Test
+    fun buildCameraAreaFrame_centersFallbackWithoutCutout() {
+        val frame = TapLockStatusBarZone.buildCameraAreaFrame(
+            screenWidthPx = 1080,
+            statusBarHeightPx = 96,
+            cutoutBounds = emptyList(),
+            density = 3f
+        )
+
+        assertEquals(288, frame.widthPx)
+        assertEquals(396, frame.xPx)
+    }
+
+    @Test
+    fun buildCameraAreaFrame_wrapsReportedTopCutout() {
+        val frame = TapLockStatusBarZone.buildCameraAreaFrame(
+            screenWidthPx = 1080,
+            statusBarHeightPx = 96,
+            cutoutBounds = listOf(
+                StatusBarCutoutBounds(
+                    leftPx = 470,
+                    topPx = 0,
+                    rightPx = 610,
+                    bottomPx = 90
+                )
+            ),
+            density = 3f
+        )
+
+        assertEquals(284, frame.widthPx)
+        assertEquals(398, frame.xPx)
+    }
+
+    @Test
+    fun buildCameraAreaFrame_clampsEdgeCameraToScreen() {
+        val frame = TapLockStatusBarZone.buildCameraAreaFrame(
+            screenWidthPx = 1080,
+            statusBarHeightPx = 96,
+            cutoutBounds = listOf(
+                StatusBarCutoutBounds(
+                    leftPx = 0,
+                    topPx = 0,
+                    rightPx = 80,
+                    bottomPx = 90
+                )
+            ),
+            density = 3f
+        )
+
+        assertEquals(224, frame.widthPx)
+        assertEquals(0, frame.xPx)
+    }
 }
