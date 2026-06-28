@@ -123,7 +123,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
                     service.lockScreen()
                 } else if (isAccessibilityEnabled(context)) {
                     Log.d("TapLock", "Widget: Instance null - using slow startService path")
-                    Toast.makeText(context, "Locking screen...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, R.string.locking_screen, Toast.LENGTH_SHORT).show()
                     val accessibilityIntent = Intent(context, TapLockAccessibilityService::class.java)
                     accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
                     context.startService(accessibilityIntent)

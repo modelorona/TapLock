@@ -60,7 +60,7 @@ class TapLockTileService : TileService() {
             if (isAccessibilityEnabled(this)) {
                 // If instance is null but we think it's enabled, try starting it
                 // This might happen if the service was killed or hasn't bound yet
-                Toast.makeText(this, "Locking screen...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.locking_screen, Toast.LENGTH_SHORT).show()
                 val accessibilityIntent = Intent(this, TapLockAccessibilityService::class.java)
                 accessibilityIntent.action = Intent.ACTION_SCREEN_OFF
                 startService(accessibilityIntent)

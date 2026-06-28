@@ -196,7 +196,7 @@ class FloatingButtonService : Service() {
                         } else if (isAccessibilityEnabled(this@FloatingButtonService)) {
                             Toast.makeText(
                                 this@FloatingButtonService,
-                                "Locking screen...",
+                                getString(R.string.locking_screen),
                                 Toast.LENGTH_SHORT
                             ).show()
                             val accessibilityIntent = Intent(
