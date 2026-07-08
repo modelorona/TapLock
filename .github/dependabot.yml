@@ -6,7 +6,13 @@
 version: 2
 updates:
   - package-ecosystem: "gradle" # See documentation for possible values
-    directory: "/app" # Location of package manifests
+    directory: "/" # Root: build.gradle.kts, settings.gradle.kts, gradle/libs.versions.toml
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "github-actions"
+    directory: "/" # Workflow files in .github/workflows
     schedule:
       interval: "weekly"
     cooldown:
