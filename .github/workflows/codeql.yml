@@ -1,0 +1,44 @@
+ name: "CodeQL"
+
+  on:
+    push:
+      branches: [ "main" ]
+    pull_request:
+      branches: [ "main" ]
+    schedule:
+      - cron: "0 0 * * 1"
+
+  jobs:
+    analyze:
+      name: Analyze (java-kotlin)
+      runs-on: ubuntu-latest
+      permissions:
+        actions: read
+        contents: read
+        security-events: write
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Initialize CodeQL
+          uses: github/codeql-action/init@v3
+          with:
+            languages: java-kotlin
+            build-mode: none
+  
+        - name: Perform CodeQL Analysis
+          uses: github/codeql-action/analyze@v3
+        contents: read
+        security-events: write
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Initialize CodeQL
+          uses: github/codeql-action/init@v3
+          with:
+            languages: java-kotlin
+            build-mode: none
+
+        - name: Perform CodeQL Analysis
+          uses: github/codeql-action/analyze@v3
+          with:
+            category: "/language:java-kotlin"
