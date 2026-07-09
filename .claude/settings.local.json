@@ -27,7 +27,19 @@
       "Bash(./gradlew dependencyUpdates)",
       "Bash(./gradlew :app:dependencies --configuration debugRuntimeClasspath)",
       "Bash(./gradlew lintDebug)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(gh run *)",
+      "Bash(gh api *)",
+      "Bash(python3 *)",
+      "WebFetch(domain:android-developers.googleblog.com)",
+      "WebFetch(domain:source.android.com)",
+      "WebFetch(domain:www.androidauthority.com)",
+      "WebFetch(domain:www.androidpolice.com)",
+      "WebFetch(domain:arstechnica.com)",
+      "WebFetch(domain:support.google.com)",
+      "Bash(curl -sL --max-time 20 \"https://raw.githubusercontent.com/github/codeql/main/java/kotlin-extractor/README.md\")",
+      "WebFetch(domain:codeql.github.com)",
+      "Bash(./gradlew testDebugUnitTest)"
     ]
   }
 }
