@@ -55,7 +55,13 @@
       "Bash(curl -sL --max-time 25 -A \"Mozilla/5.0 Chrome/120\" \"https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/accessibility/java/com/android/server/accessibility/AccessibilityManagerService.java?format=TEXT\" -o /tmp/ams.txt)",
       "Bash(curl -sL --max-time 20 -A \"Mozilla/5.0 Chrome/120\" \"https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/accessibilityservice/AccessibilityServiceInfo.java?format=TEXT\" -o /tmp/asi.txt)",
       "Bash(cd *)",
-      "Bash(./gradlew assembleDebug testDebugUnitTest)"
+      "Bash(./gradlew assembleDebug testDebugUnitTest)",
+      "WebFetch(domain:f-droid.org)",
+      "Bash(sips -g pixelWidth -g pixelHeight app/src/main/ic_launcher-playstore.png)",
+      "Bash(curl -sL --max-time 20 -A \"Mozilla/5.0 Chrome/120\" \"https://gitlab.com/fdroid/fdroiddata/-/raw/master/config/categories.yml\" -o /tmp/cats.yml -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(brew --version)",
+      "Bash(brew list *)",
+      "Bash(brew install *)"
     ]
   }
 }
