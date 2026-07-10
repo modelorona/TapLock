@@ -1,11 +1,11 @@
 # TapLock
 
 [![API](https://img.shields.io/badge/API-31%2B-brightgreen.svg)](https://android-arsenal.com/api?level=31)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Latest Release](https://img.shields.io/badge/version-1.0-blue)](https://github.com/modelorona/TapLock/releases)
-[![Kotlin](https://img.shields.io/badge/kotlin-1.9.21-purple.svg)](https://kotlinlang.org)
-[![Android Studio](https://img.shields.io/badge/Android%20Studio-Hedgehog-green.svg)](https://developer.android.com/studio)
-![Static Badge](https://img.shields.io/badge/Download_It-Play_Store-green?link=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.ah.taplock)
+[![License](https://img.shields.io/github/license/modelorona/TapLock?color=blue)](https://github.com/modelorona/TapLock/blob/main/LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/modelorona/TapLock)](https://github.com/modelorona/TapLock/releases)
+[![Kotlin](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmodelorona%2FTapLock%2Fmain%2Fgradle%2Flibs.versions.toml&query=%24.versions.kotlin&label=kotlin&color=purple&logo=kotlin)](https://kotlinlang.org)
+[![AGP](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmodelorona%2FTapLock%2Fmain%2Fgradle%2Flibs.versions.toml&query=%24.versions.agp&label=AGP&logo=androidstudio&color=green)](https://developer.android.com/studio)
+[![Download on Google Play](https://img.shields.io/badge/Download_It-Play_Store-green?logo=googleplay)](https://play.google.com/store/apps/details?id=com.ah.taplock)
 
 
 <img src="app/src/main/ic_launcher-playstore.png" width="256" style="display: block; margin: auto;" alt="TapLock Logo">

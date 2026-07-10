@@ -39,7 +39,14 @@
       "WebFetch(domain:support.google.com)",
       "Bash(curl -sL --max-time 20 \"https://raw.githubusercontent.com/github/codeql/main/java/kotlin-extractor/README.md\")",
       "WebFetch(domain:codeql.github.com)",
-      "Bash(./gradlew testDebugUnitTest)"
+      "Bash(./gradlew testDebugUnitTest)",
+      "Bash(gh release *)",
+      "Bash(gh repo *)",
+      "Bash(curl -sL --max-time 15 \"https://img.shields.io/github/v/release/modelorona/TapLock\")",
+      "Bash(curl -sL --max-time 15 \"https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmodelorona%2FTapLock%2Fmain%2Fgradle%2Flibs.versions.toml&query=%24.versions.kotlin&label=kotlin&color=purple&logo=kotlin\")",
+      "Bash(curl -sL --max-time 15 \"https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmodelorona%2FTapLock%2Fmain%2Fgradle%2Flibs.versions.toml&query=%24.versions.agp&label=AGP\")",
+      "Bash(curl -sL --max-time 15 \"https://img.shields.io/github/license/modelorona/TapLock\")",
+      "Bash(curl -sL --max-time 20 \"https://www.apache.org/licenses/LICENSE-2.0.txt\" -o LICENSE)"
     ]
   }
 }
