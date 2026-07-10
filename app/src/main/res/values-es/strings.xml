@@ -33,7 +33,7 @@
     <string name="agree">Aceptar</string>
     <string name="not_now">Ahora no</string>
     <string name="tile_label">Bloquear</string>
-    <string name="locking_screen">Bloqueando pantalla...</string>
+    <string name="locking_screen">Bloqueando pantalla…</string>
     <string name="accessibility_permission_required">Permiso de accesibilidad requerido</string>
     <string name="vibrate_on_lock_label">Vibrar al bloquear</string>
     <string name="battery_optimization_description">Si el widget deja de funcionar después de un tiempo, prueba a desactivar la optimización de batería para esta app. Esto permite que el servicio de accesibilidad se ejecute de forma más fiable en segundo plano.</string>
@@ -54,6 +54,10 @@
     <string name="vibration_medium">Media</string>
     <string name="vibration_strong">Fuerte</string>
     <string name="accessibility_required_hint">Activa el servicio de accesibilidad para usar estas funciones</string>
+
+    <string name="advanced_protection_title">Protección avanzada activada</string>
+    <string name="advanced_protection_description">Este dispositivo tiene activada la Protección avanzada de Android, que bloquea todos los servicios de accesibilidad de terceros. TapLock necesita un servicio de accesibilidad para bloquear la pantalla, por lo que no puede funcionar mientras la Protección avanzada esté activada. Para usar TapLock, desactiva la Protección avanzada en Ajustes &gt; Seguridad y privacidad.</string>
+    <string name="advanced_protection_open_settings">Abrir ajustes de seguridad</string>
     <string name="onboarding_welcome_title">Bienvenido a TapLock</string>
     <string name="onboarding_welcome_body">Bloquea la pantalla al instante con un doble toque. Vamos a configurarlo en unos pocos pasos.</string>
     <string name="onboarding_accessibility_title">Activar accesibilidad</string>
@@ -135,7 +139,7 @@
     </plurals>
     <string name="app_exclusions_dialog_title">Elegir apps</string>
     <string name="app_exclusions_search_label">Buscar apps</string>
-    <string name="app_exclusions_loading">Cargando apps...</string>
+    <string name="app_exclusions_loading">Cargando apps…</string>
     <string name="app_exclusions_no_results">No hay resultados</string>
     <string name="app_exclusions_clear">Borrar todo</string>
     <string name="app_exclusions_done">Listo</string>

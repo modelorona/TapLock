@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -163,6 +164,10 @@ fun TapLockScreen() {
 
     var isAccessibilityEnabled by remember {
         mutableStateOf(isAccessibilityEnabled(context))
+    }
+
+    var isAdvancedProtectionEnabled by remember {
+        mutableStateOf(isAdvancedProtectionEnabled(context))
     }
 
     var isBatteryOptimized by remember {
@@ -543,6 +548,15 @@ fun TapLockScreen() {
             isAccessibilityEnabled = isAccessibilityEnabled(context)
         }
 
+        // Advanced Protection Mode (Android 16+) blocks third-party accessibility services. Watch
+        // for changes so the UI updates live if the user toggles it off without leaving the app.
+        val advancedProtectionCallback =
+            if (Build.VERSION.SDK_INT >= 36) {
+                registerAdvancedProtectionCallback(context, context.mainExecutor) { enabled ->
+                    isAdvancedProtectionEnabled = enabled
+                }
+            } else null
+
         val accessibilityObserver =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val listener =
@@ -569,6 +583,7 @@ fun TapLockScreen() {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityEnabled = isAccessibilityEnabled(context)
+                isAdvancedProtectionEnabled = isAdvancedProtectionEnabled(context)
                 val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -643,6 +658,9 @@ fun TapLockScreen() {
             } else {
                 context.contentResolver.unregisterContentObserver(accessibilityObserver as ContentObserver)
             }
+            if (Build.VERSION.SDK_INT >= 36 && advancedProtectionCallback != null) {
+                unregisterAdvancedProtectionCallback(context, advancedProtectionCallback)
+            }
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
@@ -680,6 +698,53 @@ fun TapLockScreen() {
                 disclaimerString = disclaimerString
             )
 
+            if (isAdvancedProtectionEnabled) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                stringResource(R.string.advanced_protection_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.advanced_protection_description),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Button(
+                            onClick = {
+                                runCatching {
+                                    context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
+                                }.onFailure {
+                                    context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                }
+                            }
+                        ) {
+                            Text(stringResource(R.string.advanced_protection_open_settings))
+                        }
+                    }
+                }
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -715,7 +780,9 @@ fun TapLockScreen() {
                         Text(stringResource(R.string.accessibility_service), modifier = Modifier.weight(1f))
                         Button(
                             onClick = { showDialog = true },
-                            enabled = !isAccessibilityEnabled,
+                            // Advanced Protection blocks the accessibility toggle entirely, so
+                            // don't send the user to a Settings screen they can't act on.
+                            enabled = !isAccessibilityEnabled && !isAdvancedProtectionEnabled,
                         ) {
                             Text(text = if (isAccessibilityEnabled) stringResource(R.string.enabled) else stringResource(R.string.enable))
                         }

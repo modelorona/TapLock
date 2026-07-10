@@ -46,7 +46,16 @@
       "Bash(curl -sL --max-time 15 \"https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmodelorona%2FTapLock%2Fmain%2Fgradle%2Flibs.versions.toml&query=%24.versions.kotlin&label=kotlin&color=purple&logo=kotlin\")",
       "Bash(curl -sL --max-time 15 \"https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmodelorona%2FTapLock%2Fmain%2Fgradle%2Flibs.versions.toml&query=%24.versions.agp&label=AGP\")",
       "Bash(curl -sL --max-time 15 \"https://img.shields.io/github/license/modelorona/TapLock\")",
-      "Bash(curl -sL --max-time 20 \"https://www.apache.org/licenses/LICENSE-2.0.txt\" -o LICENSE)"
+      "Bash(curl -sL --max-time 20 \"https://www.apache.org/licenses/LICENSE-2.0.txt\" -o LICENSE)",
+      "Bash(curl -sL --max-time 20 -A \"Mozilla/5.0 Chrome/120\" \"https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/security/advancedprotection/?format=JSON\" -o /tmp/dir.txt -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(curl -sL --max-time 20 -A \"Mozilla/5.0 Chrome/120\" \"https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/security/advancedprotection/AdvancedProtectionManager.java?format=TEXT\" -o /tmp/apm.txt -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(curl -sL --max-time 25 -A \"Mozilla/5.0 Chrome/120\" \"https://cs.android.com/api/search?q=advanced%20protection%20accessibility&sq=&project=android\" -o /tmp/cs.json -w \"HTTP %{http_code} bytes %{size_download}\\\\n\")",
+      "Read(//tmp/**)",
+      "Bash(curl -sL --max-time 20 -A \"Mozilla/5.0 Chrome/120\" \"https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/accessibility/java/com/android/server/accessibility/?format=JSON\" -o /tmp/dir2.txt -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(curl -sL --max-time 25 -A \"Mozilla/5.0 Chrome/120\" \"https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/services/accessibility/java/com/android/server/accessibility/AccessibilityManagerService.java?format=TEXT\" -o /tmp/ams.txt)",
+      "Bash(curl -sL --max-time 20 -A \"Mozilla/5.0 Chrome/120\" \"https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/accessibilityservice/AccessibilityServiceInfo.java?format=TEXT\" -o /tmp/asi.txt)",
+      "Bash(cd *)",
+      "Bash(./gradlew assembleDebug testDebugUnitTest)"
     ]
   }
 }

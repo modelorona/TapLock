@@ -38,7 +38,7 @@
     <string name="agree">Agree</string>
     <string name="not_now">Not now</string>
     <string name="tile_label">Lock</string>
-    <string name="locking_screen">Locking screen...</string>
+    <string name="locking_screen">Locking screen…</string>
     <string name="accessibility_permission_required">Accessibility permission required</string>
     <string name="vibrate_on_lock" translatable="false">vibrate_on_lock</string>
     <string name="vibrate_on_lock_label">Vibrate on Lock</string>
@@ -81,6 +81,10 @@
     <string name="vibration_medium">Medium</string>
     <string name="vibration_strong">Strong</string>
     <string name="accessibility_required_hint">Enable accessibility service to use these features</string>
+
+    <string name="advanced_protection_title">Advanced Protection is on</string>
+    <string name="advanced_protection_description">This device has Android\'s Advanced Protection turned on, which blocks all third-party accessibility services. TapLock relies on an accessibility service to lock the screen, so it can\'t work while Advanced Protection is enabled. To use TapLock, turn off Advanced Protection in Settings &gt; Security &amp; privacy.</string>
+    <string name="advanced_protection_open_settings">Open Security settings</string>
 
     <string name="has_completed_onboarding" translatable="false">has_completed_onboarding</string>
     <string name="onboarding_welcome_title">Welcome to TapLock</string>
