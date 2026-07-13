@@ -1,0 +1,1 @@
+Bloquea la pantalla al instante con un doble toque.

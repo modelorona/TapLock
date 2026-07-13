@@ -980,7 +980,9 @@ fun TapLockScreen() {
                     style = widgetStyle,
                     showIcon = showIcon,
                     iconBitmap = widgetIconBitmap ?: defaultAppIconBitmap,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("widget_style_preview")
                 )
 
                 if (showIcon) {
@@ -1055,7 +1057,8 @@ fun TapLockScreen() {
                         Button(
                             onClick = { requestQuickSettingsTilePrompt() },
                             enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                                !isTileAdded
+                                !isTileAdded,
+                            modifier = Modifier.testTag("button_quick_settings_tile")
                         ) {
                             Text(
                                 if (isTileAdded) {
