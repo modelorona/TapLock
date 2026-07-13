@@ -1,0 +1,20 @@
+TapLock es una utilidad minimalista que te permite bloquear la pantalla con un doble toque, ideal para el uso con una sola mano y para bloquear la pantalla rápidamente sin buscar el botón de encendido.
+
+Crea un widget transparente y redimensionable para la pantalla de inicio y tócalo dos veces para bloquear el teléfono al instante. TapLock también ofrece otras formas de bloquear:
+
+* Widget de pantalla de inicio (redimensionable, con icono opcional y varios estilos)
+* Mosaico de Ajustes rápidos
+* Botón flotante arrastrable
+* Doble toque en la barra de estado
+* Doble toque en la pantalla de bloqueo, los bordes o las esquinas
+
+Funciones adicionales:
+
+* Tiempo límite de doble toque y retardo de bloqueo ajustables
+* Vibración opcional con patrones ligero, medio y fuerte
+* Exclusiones por app para ignorar los toques en las apps que elijas
+* Disponible en inglés y español
+
+TapLock usa el servicio de accesibilidad de Android para apagar la pantalla. Este permiso es necesario para que la app funcione, y TapLock no recopila ninguna información personal ni registra ninguna otra interacción que tengas con el dispositivo. El código fuente completo está disponible para mayor transparencia.
+
+Nota: en dispositivos con la Protección avanzada de Android activada, el sistema bloquea todos los servicios de accesibilidad de terceros, por lo que TapLock no puede bloquear la pantalla mientras la Protección avanzada esté activada.

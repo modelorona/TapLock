@@ -1,0 +1,3 @@
+* Detecta la Protección avanzada de Android y explica claramente que bloquea el servicio de accesibilidad de TapLock
+* Compatibilidad con el idioma español
+* Actualizaciones de dependencias y de compilación

@@ -1,0 +1,10 @@
+default_platform(:android)
+
+platform :android do
+  desc "Build debug + test APKs and capture store screenshots (EN/ES) via screengrab"
+  lane :screenshots do
+    gradle(task: "assembleDebug")
+    gradle(task: "assembleDebugAndroidTest")
+    screengrab
+  end
+end

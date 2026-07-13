@@ -1,0 +1,3 @@
+* Detect Android Advanced Protection and clearly explain that it blocks TapLock's accessibility service
+* Spanish language support
+* Dependency and build updates

@@ -10,4 +10,9 @@
 local.properties
 app/release
 vendor
+.bundle
+fastlane/README.md
+fastlane/report.xml
+fastlane/metadata/android/screenshots.html
+fastlane/metadata/android/**/images/screenshots/
 .fdroid-submission

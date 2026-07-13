@@ -1,0 +1,25 @@
+# fastlane screengrab configuration for TapLock.
+# Run with:  bundle exec fastlane screenshots
+# (see fastlane/Fastfile). Requires a running emulator/device.
+
+app_package_name('com.ah.taplock')
+
+# Only run the dedicated screenshot test class, not the whole instrumented suite.
+use_tests_in_classes(['com.ah.taplock.ScreenshotTest'])
+test_instrumentation_runner('androidx.test.runner.AndroidJUnitRunner')
+
+# Capture these locales. Must match fastlane metadata folder locales.
+locales(['en-US', 'es-ES'])
+
+# Clear previously generated screenshots before each run.
+clear_previous_screenshots(true)
+
+# Output into the fastlane metadata tree so F-Droid / stores pick them up.
+output_directory('fastlane/metadata/android')
+
+# Reinstall the app + test APKs each run.
+reinstall_app(true)
+
+# Explicit APK paths (built by the `screenshots` lane / assembleDebug tasks).
+app_apk_path('app/build/outputs/apk/debug/app-debug.apk')
+tests_apk_path('app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk')

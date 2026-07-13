@@ -1,0 +1,20 @@
+TapLock is a minimalist utility that lets you lock your screen with a double tap — perfect for one-handed use and quick screen locking without reaching for the power button.
+
+Create a resizable, transparent home screen widget and double-tap it to lock your phone instantly. TapLock also offers several other ways to lock:
+
+* Home screen widget (resizable, with optional icon and multiple styles)
+* Quick Settings tile
+* Draggable floating button
+* Double-tap the status bar
+* Double-tap the lock screen, edges, or corners
+
+Additional features:
+
+* Adjustable double-tap timeout and lock delay
+* Optional vibration feedback with light, medium, and strong patterns
+* Per-app exclusions so taps are ignored in apps you choose
+* Available in English and Spanish
+
+TapLock uses Android's accessibility service to power off the screen. This permission is required for the app to function, and TapLock does not collect any personal information or track any other interaction you have with your device. The full source code is available for transparency.
+
+Note: On devices with Android's Advanced Protection enabled, the system blocks all third-party accessibility services, so TapLock cannot lock the screen while Advanced Protection is turned on.
