@@ -61,7 +61,10 @@
       "Bash(curl -sL --max-time 20 -A \"Mozilla/5.0 Chrome/120\" \"https://gitlab.com/fdroid/fdroiddata/-/raw/master/config/categories.yml\" -o /tmp/cats.yml -w \"HTTP %{http_code}\\\\n\")",
       "Bash(brew --version)",
       "Bash(brew list *)",
-      "Bash(brew install *)"
+      "Bash(brew install *)",
+      "Bash(export ANDROID_HOME=\"$HOME/Library/Android/sdk\")",
+      "Bash(./gradlew assembleDebug assembleDebugAndroidTest lintDebug)",
+      "Bash(./gradlew assembleDebug assembleDebugAndroidTest)"
     ]
   }
 }
