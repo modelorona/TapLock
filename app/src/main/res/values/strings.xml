@@ -43,21 +43,26 @@
     <string name="vibrate_on_lock" translatable="false">vibrate_on_lock</string>
     <string name="vibrate_on_lock_label">Vibrate on Lock</string>
     <string name="battery_optimization_description">If the widget stops working after a while, try disabling battery optimization for this app. This allows the accessibility service to run more reliably in the background.</string>
-    <string name="status_bar_double_tap" translatable="false">status_bar_double_tap</string>
-    <string name="status_bar_double_tap_label">Double-Tap Status Bar to Lock</string>
-    <string name="status_bar_double_tap_description">Double tap on the status bar to lock the screen.</string>
+    <string name="status_bar_mode" translatable="false">status_bar_mode</string>
+    <string name="status_bar_mode_label">Status Bar</string>
+    <string name="status_bar_mode_description">Tap the status bar to lock the screen.</string>
     <string name="status_bar_camera_area_only" translatable="false">status_bar_camera_area_only</string>
     <string name="status_bar_camera_area_only_label">Notch/Camera Area Only</string>
-    <string name="status_bar_camera_area_only_description">Experimental: limit status bar double-taps to the notch or camera area when Android reports it.</string>
-    <string name="lock_screen_double_tap" translatable="false">lock_screen_double_tap</string>
-    <string name="lock_screen_double_tap_label">Double-Tap Lock Screen to Lock</string>
-    <string name="lock_screen_double_tap_description">When the screen is locked, double-tap inside the configured area to lock.</string>
-    <string name="left_edge_lock_zone" translatable="false">left_edge_lock_zone</string>
-    <string name="right_edge_lock_zone" translatable="false">right_edge_lock_zone</string>
-    <string name="top_left_corner_lock_zone" translatable="false">top_left_corner_lock_zone</string>
-    <string name="top_right_corner_lock_zone" translatable="false">top_right_corner_lock_zone</string>
-    <string name="bottom_left_corner_lock_zone" translatable="false">bottom_left_corner_lock_zone</string>
-    <string name="bottom_right_corner_lock_zone" translatable="false">bottom_right_corner_lock_zone</string>
+    <string name="status_bar_camera_area_only_description">Experimental: limit status bar taps to the notch or camera area when Android reports it.</string>
+    <string name="lock_screen_mode" translatable="false">lock_screen_mode</string>
+    <string name="lock_screen_mode_label">Lock Screen</string>
+    <string name="lock_screen_mode_description">When the screen is locked, tap inside the configured area to lock.</string>
+    <string name="left_edge_mode" translatable="false">left_edge_mode</string>
+    <string name="right_edge_mode" translatable="false">right_edge_mode</string>
+    <string name="top_left_corner_mode" translatable="false">top_left_corner_mode</string>
+    <string name="top_right_corner_mode" translatable="false">top_right_corner_mode</string>
+    <string name="bottom_left_corner_mode" translatable="false">bottom_left_corner_mode</string>
+    <string name="bottom_right_corner_mode" translatable="false">bottom_right_corner_mode</string>
+    <string name="widget_mode" translatable="false">widget_mode</string>
+    <string name="widget_mode_label">Tap Mode</string>
+    <string name="tap_mode_off">Off</string>
+    <string name="tap_mode_double_tap">Double-Tap</string>
+    <string name="tap_mode_single_tap">Single-Tap</string>
     <string name="edge_zone_width_dp" translatable="false">edge_zone_width_dp</string>
     <string name="corner_zone_size_dp" translatable="false">corner_zone_size_dp</string>
     <string name="edge_zone_coverage_percent" translatable="false">edge_zone_coverage_percent</string>
@@ -144,20 +149,20 @@
     <string name="lock_zone_preview_label">Active area preview</string>
     <string name="lock_zone_preview_button">Highlight active area</string>
     <string name="edge_zones_label">Screen Edge And Corner Lock Zones</string>
-    <string name="edge_zones_description">Double-tap enabled screen edges or corners to lock. Swiping inward from an enabled screen edge still goes Back.</string>
+    <string name="edge_zones_description">Tap an enabled screen edge or corner to lock. Swiping inward from an enabled screen edge still goes Back.</string>
     <string name="edge_zones_portrait_only">These settings apply in both portrait and landscape.</string>
     <string name="edge_zones_subsection_label">Screen Edges</string>
-    <string name="left_edge_lock_zone_label">Left Screen Edge</string>
-    <string name="right_edge_lock_zone_label">Right Screen Edge</string>
+    <string name="left_edge_mode_label">Left Screen Edge</string>
+    <string name="right_edge_mode_label">Right Screen Edge</string>
     <string name="edge_zone_width_label">Screen edge width: %ddp</string>
     <string name="edge_zone_top_offset_label">Top offset: %d%%</string>
     <string name="edge_zone_bottom_offset_label">Bottom offset: %d%%</string>
     <string name="corner_zones_label">Screen Corners</string>
-    <string name="corner_zones_description">Corners are double-tap only and do not trigger Back gestures.</string>
-    <string name="top_left_corner_lock_zone_label">Top Left Corner</string>
-    <string name="top_right_corner_lock_zone_label">Top Right Corner</string>
-    <string name="bottom_left_corner_lock_zone_label">Bottom Left Corner</string>
-    <string name="bottom_right_corner_lock_zone_label">Bottom Right Corner</string>
+    <string name="corner_zones_description">Corners do not trigger Back gestures.</string>
+    <string name="top_left_corner_mode_label">Top Left Corner</string>
+    <string name="top_right_corner_mode_label">Top Right Corner</string>
+    <string name="bottom_left_corner_mode_label">Bottom Left Corner</string>
+    <string name="bottom_right_corner_mode_label">Bottom Right Corner</string>
     <string name="corner_zone_size_label">Screen corner size: %ddp</string>
     <string name="edge_zone_preview_label">Clickable zone preview</string>
     <string name="app_exclusions_description">Disable TapLock while these apps are open.</string>

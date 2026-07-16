@@ -21,8 +21,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -181,6 +186,40 @@ fun DoubleTapTestArea(timeoutMs: Int) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TapModeSelector(
+    label: String,
+    mode: TapZoneMode,
+    onModeChange: (TapZoneMode) -> Unit,
+    enabled: Boolean,
+    testTag: String,
+    modes: List<TapZoneMode> = TapZoneMode.entries
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            modes.forEachIndexed { index, entryMode ->
+                SegmentedButton(
+                    selected = mode == entryMode,
+                    onClick = { onModeChange(entryMode) },
+                    enabled = enabled,
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = modes.size
+                    ),
+                    modifier = Modifier.testTag("${testTag}_${entryMode.name.lowercase()}")
+                ) {
+                    Text(stringResource(entryMode.labelResId))
+                }
+            }
         }
     }
 }

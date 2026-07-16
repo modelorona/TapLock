@@ -3,8 +3,10 @@ package com.ah.taplock
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -68,37 +70,37 @@ class SettingsUiTest {
     }
 
     @Test
-    fun defaultValues_statusBarDoubleTapIsOff() {
-        composeTestRule.onNodeWithTag("switch_status_bar")
+    fun defaultValues_statusBarModeIsOff() {
+        composeTestRule.onNodeWithTag("status_bar_mode_off")
             .performScrollTo()
-            .assertIsOff()
+            .assertIsSelected()
     }
 
     @Test
     fun defaultValues_interactionZonesAreOff() {
-        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+        composeTestRule.onNodeWithTag("left_edge_mode_off")
             .performScrollTo()
-            .assertIsOff()
+            .assertIsSelected()
 
-        composeTestRule.onNodeWithTag("switch_right_edge_zone")
+        composeTestRule.onNodeWithTag("right_edge_mode_off")
             .performScrollTo()
-            .assertIsOff()
+            .assertIsSelected()
 
-        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
+        composeTestRule.onNodeWithTag("top_left_corner_mode_off")
             .performScrollTo()
-            .assertIsOff()
+            .assertIsSelected()
 
-        composeTestRule.onNodeWithTag("switch_top_right_corner_zone")
+        composeTestRule.onNodeWithTag("top_right_corner_mode_off")
             .performScrollTo()
-            .assertIsOff()
+            .assertIsSelected()
 
-        composeTestRule.onNodeWithTag("switch_bottom_left_corner_zone")
+        composeTestRule.onNodeWithTag("bottom_left_corner_mode_off")
             .performScrollTo()
-            .assertIsOff()
+            .assertIsSelected()
 
-        composeTestRule.onNodeWithTag("switch_bottom_right_corner_zone")
+        composeTestRule.onNodeWithTag("bottom_right_corner_mode_off")
             .performScrollTo()
-            .assertIsOff()
+            .assertIsSelected()
     }
 
     @Test
@@ -152,21 +154,24 @@ class SettingsUiTest {
     }
 
     @Test
-    fun toggleStatusBarDoubleTap_updatesPref() {
-        composeTestRule.onNodeWithTag("switch_status_bar")
+    fun setStatusBarModeToDoubleTap_updatesPref() {
+        composeTestRule.onNodeWithTag("status_bar_mode_double_tap")
             .performScrollTo()
             .performClick()
 
-        composeTestRule.onNodeWithTag("switch_status_bar")
-            .assertIsOn()
+        composeTestRule.onNodeWithTag("status_bar_mode_double_tap")
+            .assertIsSelected()
 
-        assertTrue(getPrefs().getBoolean(context.getString(R.string.status_bar_double_tap), false))
+        assertEquals(
+            TapZoneMode.DOUBLE_TAP.name,
+            getPrefs().getString(context.getString(R.string.status_bar_mode), null)
+        )
     }
 
     @Test
     fun toggleStatusBarCameraAreaOnly_updatesPref() {
         getPrefs().edit()
-            .putBoolean(context.getString(R.string.status_bar_double_tap), true)
+            .putString(context.getString(R.string.status_bar_mode), TapZoneMode.DOUBLE_TAP.name)
             .commit()
 
         setScreenContent()
@@ -184,46 +189,53 @@ class SettingsUiTest {
     }
 
     @Test
-    fun toggleLeftEdgeZone_updatesPref() {
-        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+    fun setLeftEdgeModeToDoubleTap_updatesPref() {
+        composeTestRule.onNodeWithTag("left_edge_mode_double_tap")
             .performScrollTo()
             .performClick()
 
-        composeTestRule.onNodeWithTag("switch_left_edge_zone")
-            .assertIsOn()
+        composeTestRule.onNodeWithTag("left_edge_mode_double_tap")
+            .assertIsSelected()
 
-        assertTrue(getPrefs().getBoolean(context.getString(R.string.left_edge_lock_zone), false))
+        assertEquals(
+            TapZoneMode.DOUBLE_TAP.name,
+            getPrefs().getString(context.getString(R.string.left_edge_mode), null)
+        )
     }
 
     @Test
-    fun toggleRightEdgeZone_updatesPref() {
-        composeTestRule.onNodeWithTag("switch_right_edge_zone")
+    fun setRightEdgeModeToDoubleTap_updatesPref() {
+        composeTestRule.onNodeWithTag("right_edge_mode_double_tap")
             .performScrollTo()
             .performClick()
 
-        composeTestRule.onNodeWithTag("switch_right_edge_zone")
-            .assertIsOn()
+        composeTestRule.onNodeWithTag("right_edge_mode_double_tap")
+            .assertIsSelected()
 
-        assertTrue(getPrefs().getBoolean(context.getString(R.string.right_edge_lock_zone), false))
+        assertEquals(
+            TapZoneMode.DOUBLE_TAP.name,
+            getPrefs().getString(context.getString(R.string.right_edge_mode), null)
+        )
     }
 
     @Test
-    fun toggleTopLeftCornerZone_updatesPref() {
-        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
+    fun setTopLeftCornerModeToDoubleTap_updatesPref() {
+        composeTestRule.onNodeWithTag("top_left_corner_mode_double_tap")
             .performScrollTo()
             .performClick()
 
-        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
-            .assertIsOn()
+        composeTestRule.onNodeWithTag("top_left_corner_mode_double_tap")
+            .assertIsSelected()
 
-        assertTrue(
-            getPrefs().getBoolean(context.getString(R.string.top_left_corner_lock_zone), false)
+        assertEquals(
+            TapZoneMode.DOUBLE_TAP.name,
+            getPrefs().getString(context.getString(R.string.top_left_corner_mode), null)
         )
     }
 
     @Test
     fun updateTopEdgeOffset_updatesPref() {
-        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+        composeTestRule.onNodeWithTag("left_edge_mode_double_tap")
             .performScrollTo()
             .performClick()
 
@@ -244,7 +256,7 @@ class SettingsUiTest {
 
     @Test
     fun updateBottomEdgeOffset_updatesPref() {
-        composeTestRule.onNodeWithTag("switch_left_edge_zone")
+        composeTestRule.onNodeWithTag("left_edge_mode_double_tap")
             .performScrollTo()
             .performClick()
 
@@ -265,7 +277,7 @@ class SettingsUiTest {
 
     @Test
     fun updateCornerZoneSize_updatesPref() {
-        composeTestRule.onNodeWithTag("switch_top_left_corner_zone")
+        composeTestRule.onNodeWithTag("top_left_corner_mode_double_tap")
             .performScrollTo()
             .performClick()
 
@@ -287,7 +299,7 @@ class SettingsUiTest {
     @Test
     fun updateLockZone_updatesPref() {
         getPrefs().edit()
-            .putBoolean(context.getString(R.string.lock_screen_double_tap), true)
+            .putString(context.getString(R.string.lock_screen_mode), TapZoneMode.DOUBLE_TAP.name)
             .commit()
 
         setScreenContent()
@@ -307,7 +319,7 @@ class SettingsUiTest {
     @Test
     fun updateLockZoneTopOffset_updatesPref() {
         getPrefs().edit()
-            .putBoolean(context.getString(R.string.lock_screen_double_tap), true)
+            .putString(context.getString(R.string.lock_screen_mode), TapZoneMode.DOUBLE_TAP.name)
             .commit()
 
         setScreenContent()
@@ -327,7 +339,7 @@ class SettingsUiTest {
     @Test
     fun highlightActiveArea_showsOverlayPreview() {
         getPrefs().edit()
-            .putBoolean(context.getString(R.string.lock_screen_double_tap), true)
+            .putString(context.getString(R.string.lock_screen_mode), TapZoneMode.DOUBLE_TAP.name)
             .commit()
 
         setScreenContent()

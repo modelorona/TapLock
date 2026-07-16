@@ -64,7 +64,19 @@
       "Bash(brew install *)",
       "Bash(export ANDROID_HOME=\"$HOME/Library/Android/sdk\")",
       "Bash(./gradlew assembleDebug assembleDebugAndroidTest lintDebug)",
-      "Bash(./gradlew assembleDebug assembleDebugAndroidTest)"
+      "Bash(./gradlew assembleDebug assembleDebugAndroidTest)",
+      "Bash(./gradlew clean *)",
+      "Bash(/Users/ah/Library/Android/sdk/build-tools/*/aapt2 dump *)",
+      "WebFetch(domain:gitlab.com)",
+      "Bash(env)",
+      "Bash(curl -s --max-time 20 \"https://gitlab.com/modelorona/fdroiddata/-/jobs/15342540852/raw\")",
+      "Bash(xargs -I{} echo {})",
+      "Bash(./gradlew compileDebugKotlin -q)",
+      "Bash(./gradlew testDebugUnitTest -q)",
+      "Bash(./gradlew lintDebug -q)",
+      "Bash(./gradlew tasks *)",
+      "Bash(./gradlew compileDebugAndroidTestKotlin -q)",
+      "Bash(./gradlew compileDebugKotlin compileDebugAndroidTestKotlin testDebugUnitTest lintDebug -q)"
     ]
   }
 }

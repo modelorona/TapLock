@@ -100,9 +100,13 @@ class TapLockWidgetProvider : AppWidgetProvider() {
 
     private fun handleWidgetTap(context: Context) {
         val prefs = context.getSharedPreferences(context.getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
+        val mode = TapZoneMode.fromStored(
+            prefs.getString(context.getString(R.string.widget_mode), null),
+            default = TapZoneMode.DOUBLE_TAP
+        )
         val timeout = prefs.getInt(context.getString(R.string.double_tap_timeout), 300)
 
-        if (doubleTapDetector.onTap(timeout)) {
+        if (mode == TapZoneMode.SINGLE_TAP || doubleTapDetector.onTap(timeout)) {
             val service = TapLockAccessibilityService.instance
             val isExcluded = service?.isForegroundAppExcludedNow()
                 ?: TapLockAppRules.isCurrentAppExcluded(context)

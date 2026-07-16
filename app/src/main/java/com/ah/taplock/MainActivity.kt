@@ -132,15 +132,16 @@ fun TapLockScreen() {
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
     val widgetStyleKey = stringResource(R.string.widget_style)
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
-    val statusBarDoubleTapKey = stringResource(R.string.status_bar_double_tap)
+    val statusBarModeKey = stringResource(R.string.status_bar_mode)
     val statusBarCameraAreaOnlyKey = stringResource(R.string.status_bar_camera_area_only)
-    val lockScreenDoubleTapKey = stringResource(R.string.lock_screen_double_tap)
-    val leftEdgeLockZoneKey = stringResource(R.string.left_edge_lock_zone)
-    val rightEdgeLockZoneKey = stringResource(R.string.right_edge_lock_zone)
-    val topLeftCornerLockZoneKey = stringResource(R.string.top_left_corner_lock_zone)
-    val topRightCornerLockZoneKey = stringResource(R.string.top_right_corner_lock_zone)
-    val bottomLeftCornerLockZoneKey = stringResource(R.string.bottom_left_corner_lock_zone)
-    val bottomRightCornerLockZoneKey = stringResource(R.string.bottom_right_corner_lock_zone)
+    val lockScreenModeKey = stringResource(R.string.lock_screen_mode)
+    val leftEdgeModeKey = stringResource(R.string.left_edge_mode)
+    val rightEdgeModeKey = stringResource(R.string.right_edge_mode)
+    val topLeftCornerModeKey = stringResource(R.string.top_left_corner_mode)
+    val topRightCornerModeKey = stringResource(R.string.top_right_corner_mode)
+    val bottomLeftCornerModeKey = stringResource(R.string.bottom_left_corner_mode)
+    val bottomRightCornerModeKey = stringResource(R.string.bottom_right_corner_mode)
+    val widgetModeKey = stringResource(R.string.widget_mode)
     val edgeZoneWidthDpKey = stringResource(R.string.edge_zone_width_dp)
     val cornerZoneSizeDpKey = stringResource(R.string.corner_zone_size_dp)
     val edgeZoneCoveragePercentKey = stringResource(R.string.edge_zone_coverage_percent)
@@ -180,15 +181,16 @@ fun TapLockScreen() {
     var widgetStyle by remember { mutableStateOf(TapLockWidgetStyle.default) }
     var vibrateOnLock by remember { mutableStateOf(true) }
     var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
-    var statusBarDoubleTap by remember { mutableStateOf(false) }
+    var statusBarMode by remember { mutableStateOf(TapZoneMode.OFF) }
     var statusBarCameraAreaOnly by remember { mutableStateOf(false) }
-    var lockScreenDoubleTap by remember { mutableStateOf(false) }
-    var leftEdgeZoneEnabled by remember { mutableStateOf(false) }
-    var rightEdgeZoneEnabled by remember { mutableStateOf(false) }
-    var topLeftCornerZoneEnabled by remember { mutableStateOf(false) }
-    var topRightCornerZoneEnabled by remember { mutableStateOf(false) }
-    var bottomLeftCornerZoneEnabled by remember { mutableStateOf(false) }
-    var bottomRightCornerZoneEnabled by remember { mutableStateOf(false) }
+    var lockScreenMode by remember { mutableStateOf(TapZoneMode.OFF) }
+    var leftEdgeMode by remember { mutableStateOf(TapZoneMode.OFF) }
+    var rightEdgeMode by remember { mutableStateOf(TapZoneMode.OFF) }
+    var topLeftCornerMode by remember { mutableStateOf(TapZoneMode.OFF) }
+    var topRightCornerMode by remember { mutableStateOf(TapZoneMode.OFF) }
+    var bottomLeftCornerMode by remember { mutableStateOf(TapZoneMode.OFF) }
+    var bottomRightCornerMode by remember { mutableStateOf(TapZoneMode.OFF) }
+    var widgetMode by remember { mutableStateOf(TapZoneMode.DOUBLE_TAP) }
     var infoExpanded by remember { mutableStateOf(true) }
     var showOnboarding by remember { mutableStateOf(false) }
     var onboardingStep by remember { mutableIntStateOf(0) }
@@ -238,12 +240,12 @@ fun TapLockScreen() {
     val isLockZoneSliderDragged by lockZoneSliderInteraction.collectIsDraggedAsState()
     val isLockZoneTopOffsetSliderDragged by lockZoneTopOffsetSliderInteraction.collectIsDraggedAsState()
     var showLockZonePreviewOverlay by remember { mutableStateOf(false) }
-    val editableLeftEdgeZoneEnabled = leftEdgeZoneEnabled
-    val editableRightEdgeZoneEnabled = rightEdgeZoneEnabled
-    val editableTopLeftCornerZoneEnabled = topLeftCornerZoneEnabled
-    val editableTopRightCornerZoneEnabled = topRightCornerZoneEnabled
-    val editableBottomLeftCornerZoneEnabled = bottomLeftCornerZoneEnabled
-    val editableBottomRightCornerZoneEnabled = bottomRightCornerZoneEnabled
+    val editableLeftEdgeZoneEnabled = leftEdgeMode != TapZoneMode.OFF
+    val editableRightEdgeZoneEnabled = rightEdgeMode != TapZoneMode.OFF
+    val editableTopLeftCornerZoneEnabled = topLeftCornerMode != TapZoneMode.OFF
+    val editableTopRightCornerZoneEnabled = topRightCornerMode != TapZoneMode.OFF
+    val editableBottomLeftCornerZoneEnabled = bottomLeftCornerMode != TapZoneMode.OFF
+    val editableBottomRightCornerZoneEnabled = bottomRightCornerMode != TapZoneMode.OFF
     val editableEdgeZoneWidthDp = edgeZoneWidthDp
     val editableEdgeZoneTopOffsetPercent = edgeZoneTopOffsetPercent
     val editableEdgeZoneBottomOffsetPercent = edgeZoneBottomOffsetPercent
@@ -261,7 +263,7 @@ fun TapLockScreen() {
             isEdgeBottomOffsetSliderDragged ||
             isCornerSizeSliderDragged
         )
-    val showLockZoneLiveOverlay = lockScreenDoubleTap &&
+    val showLockZoneLiveOverlay = lockScreenMode != TapZoneMode.OFF &&
         (isLockZoneSliderDragged || isLockZoneTopOffsetSliderDragged || showLockZonePreviewOverlay)
 
     LaunchedEffect(showLockZonePreviewOverlay) {
@@ -271,9 +273,9 @@ fun TapLockScreen() {
         }
     }
 
-    fun saveSelectedZoneBoolean(baseKey: String, value: Boolean) {
+    fun saveSelectedZoneMode(baseKey: String, value: TapZoneMode) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-            .edit { putBoolean(baseKey, value) }
+            .edit { putString(baseKey, value.name) }
     }
 
     fun saveSelectedZoneInt(baseKey: String, value: Int) {
@@ -302,20 +304,34 @@ fun TapLockScreen() {
         }
     }
 
-    fun setEditableEdgeEnabled(side: EdgeZoneSide, isEnabled: Boolean) {
+    fun setEditableEdgeMode(side: EdgeZoneSide, mode: TapZoneMode) {
         when (side) {
-            EdgeZoneSide.LEFT -> leftEdgeZoneEnabled = isEnabled
-            EdgeZoneSide.RIGHT -> rightEdgeZoneEnabled = isEnabled
+            EdgeZoneSide.LEFT -> leftEdgeMode = mode
+            EdgeZoneSide.RIGHT -> rightEdgeMode = mode
         }
+        saveSelectedZoneMode(if (side == EdgeZoneSide.LEFT) leftEdgeModeKey else rightEdgeModeKey, mode)
     }
 
-    fun setEditableCornerEnabled(position: CornerZonePosition, isEnabled: Boolean) {
-        when (position) {
-            CornerZonePosition.TOP_LEFT -> topLeftCornerZoneEnabled = isEnabled
-            CornerZonePosition.TOP_RIGHT -> topRightCornerZoneEnabled = isEnabled
-            CornerZonePosition.BOTTOM_LEFT -> bottomLeftCornerZoneEnabled = isEnabled
-            CornerZonePosition.BOTTOM_RIGHT -> bottomRightCornerZoneEnabled = isEnabled
+    fun setEditableCornerMode(position: CornerZonePosition, mode: TapZoneMode) {
+        val key = when (position) {
+            CornerZonePosition.TOP_LEFT -> {
+                topLeftCornerMode = mode
+                topLeftCornerModeKey
+            }
+            CornerZonePosition.TOP_RIGHT -> {
+                topRightCornerMode = mode
+                topRightCornerModeKey
+            }
+            CornerZonePosition.BOTTOM_LEFT -> {
+                bottomLeftCornerMode = mode
+                bottomLeftCornerModeKey
+            }
+            CornerZonePosition.BOTTOM_RIGHT -> {
+                bottomRightCornerMode = mode
+                bottomRightCornerModeKey
+            }
         }
+        saveSelectedZoneMode(key, mode)
     }
 
     fun setEditableEdgeWidth(value: Float) {
@@ -391,15 +407,19 @@ fun TapLockScreen() {
         widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
         vibrationPattern = VibrationHelper.fromPrefs(context)
-        statusBarDoubleTap = prefs.getBoolean(statusBarDoubleTapKey, false)
+        statusBarMode = TapZoneMode.fromStored(prefs.getString(statusBarModeKey, null))
         statusBarCameraAreaOnly = prefs.getBoolean(statusBarCameraAreaOnlyKey, false)
-        lockScreenDoubleTap = prefs.getBoolean(lockScreenDoubleTapKey, false)
-        leftEdgeZoneEnabled = prefs.getBoolean(leftEdgeLockZoneKey, false)
-        rightEdgeZoneEnabled = prefs.getBoolean(rightEdgeLockZoneKey, false)
-        topLeftCornerZoneEnabled = prefs.getBoolean(topLeftCornerLockZoneKey, false)
-        topRightCornerZoneEnabled = prefs.getBoolean(topRightCornerLockZoneKey, false)
-        bottomLeftCornerZoneEnabled = prefs.getBoolean(bottomLeftCornerLockZoneKey, false)
-        bottomRightCornerZoneEnabled = prefs.getBoolean(bottomRightCornerLockZoneKey, false)
+        lockScreenMode = TapZoneMode.fromStored(prefs.getString(lockScreenModeKey, null))
+        leftEdgeMode = TapZoneMode.fromStored(prefs.getString(leftEdgeModeKey, null))
+        rightEdgeMode = TapZoneMode.fromStored(prefs.getString(rightEdgeModeKey, null))
+        topLeftCornerMode = TapZoneMode.fromStored(prefs.getString(topLeftCornerModeKey, null))
+        topRightCornerMode = TapZoneMode.fromStored(prefs.getString(topRightCornerModeKey, null))
+        bottomLeftCornerMode = TapZoneMode.fromStored(prefs.getString(bottomLeftCornerModeKey, null))
+        bottomRightCornerMode = TapZoneMode.fromStored(prefs.getString(bottomRightCornerModeKey, null))
+        widgetMode = TapZoneMode.fromStored(
+            prefs.getString(widgetModeKey, null),
+            default = TapZoneMode.DOUBLE_TAP
+        )
         infoExpanded = !prefs.getBoolean(hasSeenInfoKey, false)
         showOnboarding = !prefs.getBoolean(hasCompletedOnboardingKey, false)
         lockDelayMs = prefs.getInt(lockDelayMsKey, 0)
@@ -590,12 +610,18 @@ fun TapLockScreen() {
                 lockCount = prefs.getInt(lockCountKey, 0)
                 showIcon = prefs.getBoolean(showWidgetIconKey, false)
                 widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
-                leftEdgeZoneEnabled = prefs.getBoolean(leftEdgeLockZoneKey, false)
-                rightEdgeZoneEnabled = prefs.getBoolean(rightEdgeLockZoneKey, false)
-                topLeftCornerZoneEnabled = prefs.getBoolean(topLeftCornerLockZoneKey, false)
-                topRightCornerZoneEnabled = prefs.getBoolean(topRightCornerLockZoneKey, false)
-                bottomLeftCornerZoneEnabled = prefs.getBoolean(bottomLeftCornerLockZoneKey, false)
-                bottomRightCornerZoneEnabled = prefs.getBoolean(bottomRightCornerLockZoneKey, false)
+                leftEdgeMode = TapZoneMode.fromStored(prefs.getString(leftEdgeModeKey, null))
+                rightEdgeMode = TapZoneMode.fromStored(prefs.getString(rightEdgeModeKey, null))
+                topLeftCornerMode = TapZoneMode.fromStored(prefs.getString(topLeftCornerModeKey, null))
+                topRightCornerMode = TapZoneMode.fromStored(prefs.getString(topRightCornerModeKey, null))
+                bottomLeftCornerMode =
+                    TapZoneMode.fromStored(prefs.getString(bottomLeftCornerModeKey, null))
+                bottomRightCornerMode =
+                    TapZoneMode.fromStored(prefs.getString(bottomRightCornerModeKey, null))
+                widgetMode = TapZoneMode.fromStored(
+                    prefs.getString(widgetModeKey, null),
+                    default = TapZoneMode.DOUBLE_TAP
+                )
                 edgeZoneWidthDp = prefs.getInt(
                     edgeZoneWidthDpKey,
                     TapLockEdgeZones.DEFAULT_WIDTH_DP
@@ -919,6 +945,19 @@ fun TapLockScreen() {
                     )
                 }
 
+                TapModeSelector(
+                    label = stringResource(R.string.widget_mode_label),
+                    mode = widgetMode,
+                    onModeChange = { newMode ->
+                        widgetMode = newMode
+                        context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                            .edit { putString(widgetModeKey, newMode.name) }
+                    },
+                    enabled = isAccessibilityEnabled,
+                    testTag = "widget_mode",
+                    modes = listOf(TapZoneMode.DOUBLE_TAP, TapZoneMode.SINGLE_TAP)
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1197,34 +1236,23 @@ fun TapLockScreen() {
                 title = stringResource(R.string.ambient_triggers_label),
                 description = stringResource(R.string.ambient_triggers_description)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.status_bar_double_tap_label),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            stringResource(R.string.status_bar_double_tap_description),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    Switch(
-                        checked = statusBarDoubleTap,
-                        onCheckedChange = { isChecked ->
-                            statusBarDoubleTap = isChecked
-                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                .edit { putBoolean(statusBarDoubleTapKey, isChecked) }
-                        },
-                        enabled = isAccessibilityEnabled,
-                        modifier = Modifier.testTag("switch_status_bar")
-                    )
-                }
+                Text(
+                    stringResource(R.string.status_bar_mode_description),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TapModeSelector(
+                    label = stringResource(R.string.status_bar_mode_label),
+                    mode = statusBarMode,
+                    onModeChange = { newMode ->
+                        statusBarMode = newMode
+                        context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                            .edit { putString(statusBarModeKey, newMode.name) }
+                    },
+                    enabled = isAccessibilityEnabled,
+                    testTag = "status_bar_mode"
+                )
 
-                if (statusBarDoubleTap) {
+                if (statusBarMode != TapZoneMode.OFF) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1257,34 +1285,23 @@ fun TapLockScreen() {
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.lock_screen_double_tap_label),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            stringResource(R.string.lock_screen_double_tap_description),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    Switch(
-                        checked = lockScreenDoubleTap,
-                        onCheckedChange = { isChecked ->
-                            lockScreenDoubleTap = isChecked
-                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
-                                .edit { putBoolean(lockScreenDoubleTapKey, isChecked) }
-                        },
-                        enabled = isAccessibilityEnabled,
-                        modifier = Modifier.testTag("switch_lock_screen")
-                    )
-                }
+                Text(
+                    stringResource(R.string.lock_screen_mode_description),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TapModeSelector(
+                    label = stringResource(R.string.lock_screen_mode_label),
+                    mode = lockScreenMode,
+                    onModeChange = { newMode ->
+                        lockScreenMode = newMode
+                        context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                            .edit { putString(lockScreenModeKey, newMode.name) }
+                    },
+                    enabled = isAccessibilityEnabled,
+                    testTag = "lock_screen_mode"
+                )
 
-                if (lockScreenDoubleTap) {
+                if (lockScreenMode != TapZoneMode.OFF) {
                     val maxLockZoneTopOffsetPercent =
                         TapLockLockZone.maxTopOffsetPercent(lockZonePercent.toInt())
                     Text(
@@ -1360,39 +1377,21 @@ fun TapLockScreen() {
                         style = MaterialTheme.typography.bodyMedium
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.left_edge_lock_zone_label))
-                        Switch(
-                            checked = editableLeftEdgeZoneEnabled,
-                            onCheckedChange = { isChecked ->
-                                setEditableEdgeEnabled(EdgeZoneSide.LEFT, isChecked)
-                                saveSelectedZoneBoolean(leftEdgeLockZoneKey, isChecked)
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_left_edge_zone")
-                        )
-                    }
+                    TapModeSelector(
+                        label = stringResource(R.string.left_edge_mode_label),
+                        mode = leftEdgeMode,
+                        onModeChange = { setEditableEdgeMode(EdgeZoneSide.LEFT, it) },
+                        enabled = isAccessibilityEnabled,
+                        testTag = "left_edge_mode"
+                    )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.right_edge_lock_zone_label))
-                        Switch(
-                            checked = editableRightEdgeZoneEnabled,
-                            onCheckedChange = { isChecked ->
-                                setEditableEdgeEnabled(EdgeZoneSide.RIGHT, isChecked)
-                                saveSelectedZoneBoolean(rightEdgeLockZoneKey, isChecked)
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_right_edge_zone")
-                        )
-                    }
+                    TapModeSelector(
+                        label = stringResource(R.string.right_edge_mode_label),
+                        mode = rightEdgeMode,
+                        onModeChange = { setEditableEdgeMode(EdgeZoneSide.RIGHT, it) },
+                        enabled = isAccessibilityEnabled,
+                        testTag = "right_edge_mode"
+                    )
 
                     if (anyEdgeZoneEnabled) {
                         Text(
@@ -1474,73 +1473,37 @@ fun TapLockScreen() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.top_left_corner_lock_zone_label))
-                        Switch(
-                            checked = editableTopLeftCornerZoneEnabled,
-                            onCheckedChange = { isChecked ->
-                                setEditableCornerEnabled(CornerZonePosition.TOP_LEFT, isChecked)
-                                saveSelectedZoneBoolean(topLeftCornerLockZoneKey, isChecked)
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_top_left_corner_zone")
-                        )
-                    }
+                    TapModeSelector(
+                        label = stringResource(R.string.top_left_corner_mode_label),
+                        mode = topLeftCornerMode,
+                        onModeChange = { setEditableCornerMode(CornerZonePosition.TOP_LEFT, it) },
+                        enabled = isAccessibilityEnabled,
+                        testTag = "top_left_corner_mode"
+                    )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.top_right_corner_lock_zone_label))
-                        Switch(
-                            checked = editableTopRightCornerZoneEnabled,
-                            onCheckedChange = { isChecked ->
-                                setEditableCornerEnabled(CornerZonePosition.TOP_RIGHT, isChecked)
-                                saveSelectedZoneBoolean(topRightCornerLockZoneKey, isChecked)
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_top_right_corner_zone")
-                        )
-                    }
+                    TapModeSelector(
+                        label = stringResource(R.string.top_right_corner_mode_label),
+                        mode = topRightCornerMode,
+                        onModeChange = { setEditableCornerMode(CornerZonePosition.TOP_RIGHT, it) },
+                        enabled = isAccessibilityEnabled,
+                        testTag = "top_right_corner_mode"
+                    )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.bottom_left_corner_lock_zone_label))
-                        Switch(
-                            checked = editableBottomLeftCornerZoneEnabled,
-                            onCheckedChange = { isChecked ->
-                                setEditableCornerEnabled(CornerZonePosition.BOTTOM_LEFT, isChecked)
-                                saveSelectedZoneBoolean(bottomLeftCornerLockZoneKey, isChecked)
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_bottom_left_corner_zone")
-                        )
-                    }
+                    TapModeSelector(
+                        label = stringResource(R.string.bottom_left_corner_mode_label),
+                        mode = bottomLeftCornerMode,
+                        onModeChange = { setEditableCornerMode(CornerZonePosition.BOTTOM_LEFT, it) },
+                        enabled = isAccessibilityEnabled,
+                        testTag = "bottom_left_corner_mode"
+                    )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(stringResource(R.string.bottom_right_corner_lock_zone_label))
-                        Switch(
-                            checked = editableBottomRightCornerZoneEnabled,
-                            onCheckedChange = { isChecked ->
-                                setEditableCornerEnabled(CornerZonePosition.BOTTOM_RIGHT, isChecked)
-                                saveSelectedZoneBoolean(bottomRightCornerLockZoneKey, isChecked)
-                            },
-                            enabled = isAccessibilityEnabled,
-                            modifier = Modifier.testTag("switch_bottom_right_corner_zone")
-                        )
-                    }
+                    TapModeSelector(
+                        label = stringResource(R.string.bottom_right_corner_mode_label),
+                        mode = bottomRightCornerMode,
+                        onModeChange = { setEditableCornerMode(CornerZonePosition.BOTTOM_RIGHT, it) },
+                        enabled = isAccessibilityEnabled,
+                        testTag = "bottom_right_corner_mode"
+                    )
 
                     if (anyCornerZoneEnabled) {
                         Text(

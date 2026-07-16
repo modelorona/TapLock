@@ -18,6 +18,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import androidx.annotation.StringRes
 import androidx.core.content.edit
 import kotlin.math.abs
 
@@ -133,12 +134,12 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun isZonePreferenceKey(key: String?): Boolean {
         if (key == null) return false
-        return key == getString(R.string.left_edge_lock_zone) ||
-            key == getString(R.string.right_edge_lock_zone) ||
-            key == getString(R.string.top_left_corner_lock_zone) ||
-            key == getString(R.string.top_right_corner_lock_zone) ||
-            key == getString(R.string.bottom_left_corner_lock_zone) ||
-            key == getString(R.string.bottom_right_corner_lock_zone) ||
+        return key == getString(R.string.left_edge_mode) ||
+            key == getString(R.string.right_edge_mode) ||
+            key == getString(R.string.top_left_corner_mode) ||
+            key == getString(R.string.top_right_corner_mode) ||
+            key == getString(R.string.bottom_left_corner_mode) ||
+            key == getString(R.string.bottom_right_corner_mode) ||
             key == getString(R.string.edge_zone_width_dp) ||
             key == getString(R.string.corner_zone_size_dp) ||
             key == getString(R.string.edge_zone_top_offset_percent) ||
@@ -149,8 +150,8 @@ class TapLockAccessibilityService : AccessibilityService() {
         val prefs = getPrefs()
         prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             when {
-                key == getString(R.string.status_bar_double_tap) ||
-                    key == getString(R.string.lock_screen_double_tap) -> updateOverlay()
+                key == getString(R.string.status_bar_mode) ||
+                    key == getString(R.string.lock_screen_mode) -> updateOverlay()
 
                 key == getString(R.string.status_bar_camera_area_only) -> {
                     if (statusBarOverlay != null) updateOverlayForLockScreen()
@@ -172,6 +173,9 @@ class TapLockAccessibilityService : AccessibilityService() {
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
     }
 
+    private fun getZoneMode(prefs: SharedPreferences, @StringRes key: Int): TapZoneMode =
+        TapZoneMode.fromStored(prefs.getString(getString(key), null))
+
     private fun unregisterPrefListener() {
         prefListener?.let {
             getPrefs().unregisterOnSharedPreferenceChangeListener(it)
@@ -186,10 +190,10 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun updateStatusBarOverlay() {
         val prefs = getPrefs()
-        val statusBarEnabled = prefs.getBoolean(getString(R.string.status_bar_double_tap), false)
-        val lockScreenEnabled = prefs.getBoolean(getString(R.string.lock_screen_double_tap), false)
-        val needsOverlay = statusBarEnabled || lockScreenEnabled
-        Log.d(TAG, "updateOverlay: statusBar=$statusBarEnabled, lockScreen=$lockScreenEnabled")
+        val statusBarMode = getZoneMode(prefs, R.string.status_bar_mode)
+        val lockScreenMode = getZoneMode(prefs, R.string.lock_screen_mode)
+        val needsOverlay = statusBarMode != TapZoneMode.OFF || lockScreenMode != TapZoneMode.OFF
+        Log.d(TAG, "updateOverlay: statusBar=$statusBarMode, lockScreen=$lockScreenMode")
 
         if (needsOverlay && statusBarOverlay == null) {
             addStatusBarOverlay()
@@ -286,8 +290,8 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     private fun updateEdgeOverlays() {
         val prefs = getPrefs()
-        val leftEnabled = prefs.getBoolean(getString(R.string.left_edge_lock_zone), false)
-        val rightEnabled = prefs.getBoolean(getString(R.string.right_edge_lock_zone), false)
+        val leftEnabled = getZoneMode(prefs, getEdgeModeKey(EdgeZoneSide.LEFT)) != TapZoneMode.OFF
+        val rightEnabled = getZoneMode(prefs, getEdgeModeKey(EdgeZoneSide.RIGHT)) != TapZoneMode.OFF
         val canShowEdgeZones = shouldShowInteractiveZones()
 
         if (leftEnabled && canShowEdgeZones) {
@@ -311,26 +315,13 @@ class TapLockAccessibilityService : AccessibilityService() {
         val prefs = getPrefs()
         val canShowCornerZones = shouldShowInteractiveZones()
 
-        updateCornerOverlay(
-            position = CornerZonePosition.TOP_LEFT,
-            enabled = prefs.getBoolean(getString(R.string.top_left_corner_lock_zone), false),
-            canShow = canShowCornerZones
-        )
-        updateCornerOverlay(
-            position = CornerZonePosition.TOP_RIGHT,
-            enabled = prefs.getBoolean(getString(R.string.top_right_corner_lock_zone), false),
-            canShow = canShowCornerZones
-        )
-        updateCornerOverlay(
-            position = CornerZonePosition.BOTTOM_LEFT,
-            enabled = prefs.getBoolean(getString(R.string.bottom_left_corner_lock_zone), false),
-            canShow = canShowCornerZones
-        )
-        updateCornerOverlay(
-            position = CornerZonePosition.BOTTOM_RIGHT,
-            enabled = prefs.getBoolean(getString(R.string.bottom_right_corner_lock_zone), false),
-            canShow = canShowCornerZones
-        )
+        CornerZonePosition.entries.forEach { position ->
+            updateCornerOverlay(
+                position = position,
+                enabled = getZoneMode(prefs, getCornerModeKey(position)) != TapZoneMode.OFF,
+                canShow = canShowCornerZones
+            )
+        }
 
         updateCornerOverlayTouchability()
     }
@@ -603,8 +594,8 @@ class TapLockAccessibilityService : AccessibilityService() {
     private fun updateStatusBarOverlayTouchability() {
         val overlay = statusBarOverlay ?: return
         val prefs = getPrefs()
-        val statusBarEnabled = prefs.getBoolean(getString(R.string.status_bar_double_tap), false)
-        val lockScreenEnabled = prefs.getBoolean(getString(R.string.lock_screen_double_tap), false)
+        val statusBarEnabled = getZoneMode(prefs, R.string.status_bar_mode) != TapZoneMode.OFF
+        val lockScreenEnabled = getZoneMode(prefs, R.string.lock_screen_mode) != TapZoneMode.OFF
         val appExcluded = isCurrentAppExcluded()
         val notificationShadeExpanded = isNotificationShadeExpanded()
 
@@ -657,12 +648,8 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
 
         val prefs = getPrefs()
-        val lockScreenEnabled = prefs.getBoolean(
-            getString(R.string.lock_screen_double_tap), false
-        )
-        val statusBarEnabled = prefs.getBoolean(
-            getString(R.string.status_bar_double_tap), false
-        )
+        val lockScreenEnabled = getZoneMode(prefs, R.string.lock_screen_mode) != TapZoneMode.OFF
+        val statusBarEnabled = getZoneMode(prefs, R.string.status_bar_mode) != TapZoneMode.OFF
 
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val params = overlay.layoutParams as WindowManager.LayoutParams
@@ -904,7 +891,10 @@ class TapLockAccessibilityService : AccessibilityService() {
             return
         }
 
-        maybeTriggerLock(doubleTapDetector, tapTimeMs, "statusBar")
+        val modeKey = if (isOnLockScreen) R.string.lock_screen_mode else R.string.status_bar_mode
+        val source = if (isOnLockScreen) "lockScreen" else "statusBar"
+        val mode = getZoneMode(getPrefs(), modeKey)
+        maybeTriggerLock(doubleTapDetector, tapTimeMs, source, mode)
     }
 
     private fun handleEdgeTap(side: EdgeZoneSide, tapTimeMs: Long) {
@@ -916,7 +906,8 @@ class TapLockAccessibilityService : AccessibilityService() {
             return
         }
 
-        maybeTriggerLock(detector, tapTimeMs, "edge:$side")
+        val mode = getZoneMode(getPrefs(), getEdgeModeKey(side))
+        maybeTriggerLock(detector, tapTimeMs, "edge:$side", mode)
     }
 
     private fun handleCornerTap(position: CornerZonePosition, tapTimeMs: Long) {
@@ -931,15 +922,35 @@ class TapLockAccessibilityService : AccessibilityService() {
             return
         }
 
-        maybeTriggerLock(detector, tapTimeMs, "corner:$position")
+        val mode = getZoneMode(getPrefs(), getCornerModeKey(position))
+        maybeTriggerLock(detector, tapTimeMs, "corner:$position", mode)
+    }
+
+    private fun getEdgeModeKey(side: EdgeZoneSide): Int = when (side) {
+        EdgeZoneSide.LEFT -> R.string.left_edge_mode
+        EdgeZoneSide.RIGHT -> R.string.right_edge_mode
+    }
+
+    private fun getCornerModeKey(position: CornerZonePosition): Int = when (position) {
+        CornerZonePosition.TOP_LEFT -> R.string.top_left_corner_mode
+        CornerZonePosition.TOP_RIGHT -> R.string.top_right_corner_mode
+        CornerZonePosition.BOTTOM_LEFT -> R.string.bottom_left_corner_mode
+        CornerZonePosition.BOTTOM_RIGHT -> R.string.bottom_right_corner_mode
     }
 
     private fun maybeTriggerLock(
         detector: DoubleTapDetector,
         tapTimeMs: Long,
-        source: String
+        source: String,
+        mode: TapZoneMode
     ) {
         val prefs = getPrefs()
+        if (mode == TapZoneMode.SINGLE_TAP) {
+            Log.d(TAG, "$source: SINGLE TAP, locking")
+            performConfiguredLock(prefs)
+            return
+        }
+
         val timeout = prefs.getInt(getString(R.string.double_tap_timeout), 300)
         Log.d(TAG, "$source: tap registered, timeout=${timeout}ms")
 

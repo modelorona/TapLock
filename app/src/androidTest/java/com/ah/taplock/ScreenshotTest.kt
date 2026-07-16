@@ -54,7 +54,7 @@ class ScreenshotTest {
             .putBoolean(context.getString(R.string.floating_button_enabled), true)
             .putInt(context.getString(R.string.floating_button_size_dp), 72)
             .putInt(context.getString(R.string.floating_button_opacity_percent), 90)
-            .putBoolean(context.getString(R.string.lock_screen_double_tap), true)
+            .putString(context.getString(R.string.lock_screen_mode), TapZoneMode.DOUBLE_TAP.name)
             .commit()
     }
 
@@ -77,7 +77,7 @@ class ScreenshotTest {
         Screengrab.screenshot("03_quick_tile")
 
         // 4 — ambient triggers with the lock-screen zone controls revealed.
-        composeTestRule.onNodeWithTag("switch_lock_screen").performScrollTo()
+        composeTestRule.onNodeWithTag("lock_screen_mode_double_tap").performScrollTo()
         composeTestRule.waitForIdle()
         Screengrab.screenshot("04_ambient_triggers")
 
