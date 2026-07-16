@@ -76,7 +76,12 @@
       "Bash(./gradlew lintDebug -q)",
       "Bash(./gradlew tasks *)",
       "Bash(./gradlew compileDebugAndroidTestKotlin -q)",
-      "Bash(./gradlew compileDebugKotlin compileDebugAndroidTestKotlin testDebugUnitTest lintDebug -q)"
+      "Bash(./gradlew compileDebugKotlin compileDebugAndroidTestKotlin testDebugUnitTest lintDebug -q)",
+      "Bash(./gradlew assembleDebug -q)",
+      "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb shell *)",
+      "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb exec-out *)",
+      "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb devices *)",
+      "Bash(./gradlew compileDebugKotlin testDebugUnitTest lintDebug -q)"
     ]
   }
 }

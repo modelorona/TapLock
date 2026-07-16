@@ -192,6 +192,9 @@ fun TapLockScreen() {
     var bottomRightCornerMode by remember { mutableStateOf(TapZoneMode.OFF) }
     var widgetMode by remember { mutableStateOf(TapZoneMode.DOUBLE_TAP) }
     var infoExpanded by remember { mutableStateOf(true) }
+    var edgeAdvancedExpanded by remember { mutableStateOf(false) }
+    var cornerAdvancedExpanded by remember { mutableStateOf(false) }
+    var lockZoneAdvancedExpanded by remember { mutableStateOf(false) }
     var showOnboarding by remember { mutableStateOf(false) }
     var onboardingStep by remember { mutableIntStateOf(0) }
     var lockDelayMs by remember { mutableIntStateOf(0) }
@@ -1304,52 +1307,58 @@ fun TapLockScreen() {
                 if (lockScreenMode != TapZoneMode.OFF) {
                     val maxLockZoneTopOffsetPercent =
                         TapLockLockZone.maxTopOffsetPercent(lockZonePercent.toInt())
-                    Text(
-                        stringResource(R.string.lock_zone_label, lockZonePercent.toInt()),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Slider(
-                        value = lockZonePercent,
-                        onValueChange = { syncLockZoneState(zonePercent = it.toInt()) },
-                        onValueChangeFinished = { persistLockZoneSettings() },
-                        valueRange = TapLockLockZone.MIN_PERCENT.toFloat()..
-                            TapLockLockZone.MAX_PERCENT.toFloat(),
-                        steps = 15,
-                        interactionSource = lockZoneSliderInteraction,
-                        modifier = Modifier.testTag("slider_lock_zone")
-                    )
-                    Text(
-                        stringResource(
-                            R.string.lock_zone_top_offset_label,
-                            lockZoneTopOffsetPercent.toInt()
-                        ),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    if (maxLockZoneTopOffsetPercent > 0) {
-                        Slider(
-                            value = lockZoneTopOffsetPercent,
-                            onValueChange = { syncLockZoneState(topOffsetPercent = it.toInt()) },
-                            onValueChangeFinished = { persistLockZoneSettings() },
-                            valueRange = TapLockLockZone.MIN_TOP_OFFSET_PERCENT.toFloat()..
-                                maxLockZoneTopOffsetPercent.toFloat(),
-                            interactionSource = lockZoneTopOffsetSliderInteraction,
-                            modifier = Modifier.testTag("slider_lock_zone_top_offset")
-                        )
-                    }
-                    Text(
-                        stringResource(R.string.lock_zone_preview_label),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    LockScreenZonePreview(
-                        lockZonePercent = lockZonePercent.toInt(),
-                        lockZoneTopOffsetPercent = lockZoneTopOffsetPercent.toInt()
-                    )
-                    Button(
-                        onClick = { showLockZonePreviewOverlay = true },
-                        modifier = Modifier.testTag("button_lock_zone_preview")
+                    AdvancedDisclosure(
+                        expanded = lockZoneAdvancedExpanded,
+                        onToggle = { lockZoneAdvancedExpanded = !lockZoneAdvancedExpanded },
+                        testTag = "advanced_lock_zone"
                     ) {
-                        Text(stringResource(R.string.lock_zone_preview_button))
+                        Text(
+                            stringResource(R.string.lock_zone_label, lockZonePercent.toInt()),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Slider(
+                            value = lockZonePercent,
+                            onValueChange = { syncLockZoneState(zonePercent = it.toInt()) },
+                            onValueChangeFinished = { persistLockZoneSettings() },
+                            valueRange = TapLockLockZone.MIN_PERCENT.toFloat()..
+                                TapLockLockZone.MAX_PERCENT.toFloat(),
+                            steps = 15,
+                            interactionSource = lockZoneSliderInteraction,
+                            modifier = Modifier.testTag("slider_lock_zone")
+                        )
+                        Text(
+                            stringResource(
+                                R.string.lock_zone_top_offset_label,
+                                lockZoneTopOffsetPercent.toInt()
+                            ),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (maxLockZoneTopOffsetPercent > 0) {
+                            Slider(
+                                value = lockZoneTopOffsetPercent,
+                                onValueChange = { syncLockZoneState(topOffsetPercent = it.toInt()) },
+                                onValueChangeFinished = { persistLockZoneSettings() },
+                                valueRange = TapLockLockZone.MIN_TOP_OFFSET_PERCENT.toFloat()..
+                                    maxLockZoneTopOffsetPercent.toFloat(),
+                                interactionSource = lockZoneTopOffsetSliderInteraction,
+                                modifier = Modifier.testTag("slider_lock_zone_top_offset")
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.lock_zone_preview_label),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        LockScreenZonePreview(
+                            lockZonePercent = lockZonePercent.toInt(),
+                            lockZoneTopOffsetPercent = lockZoneTopOffsetPercent.toInt()
+                        )
+                        Button(
+                            onClick = { showLockZonePreviewOverlay = true },
+                            modifier = Modifier.testTag("button_lock_zone_preview")
+                        ) {
+                            Text(stringResource(R.string.lock_zone_preview_button))
+                        }
                     }
                 }
 
@@ -1394,71 +1403,77 @@ fun TapLockScreen() {
                     )
 
                     if (anyEdgeZoneEnabled) {
-                        Text(
-                            stringResource(
-                                R.string.edge_zone_width_label,
-                                editableEdgeZoneWidthDp.toInt()
-                            ),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Slider(
-                            value = editableEdgeZoneWidthDp,
-                            onValueChange = { setEditableEdgeWidth(it) },
-                            onValueChangeFinished = {
-                                saveSelectedZoneInt(
-                                    edgeZoneWidthDpKey,
+                        AdvancedDisclosure(
+                            expanded = edgeAdvancedExpanded,
+                            onToggle = { edgeAdvancedExpanded = !edgeAdvancedExpanded },
+                            testTag = "advanced_edge"
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.edge_zone_width_label,
                                     editableEdgeZoneWidthDp.toInt()
-                                )
-                            },
-                            valueRange = TapLockEdgeZones.MIN_WIDTH_DP.toFloat()..
-                                TapLockEdgeZones.MAX_WIDTH_DP.toFloat(),
-                            interactionSource = edgeWidthSliderInteraction,
-                            modifier = Modifier.testTag("slider_edge_zone_width")
-                        )
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = editableEdgeZoneWidthDp,
+                                onValueChange = { setEditableEdgeWidth(it) },
+                                onValueChangeFinished = {
+                                    saveSelectedZoneInt(
+                                        edgeZoneWidthDpKey,
+                                        editableEdgeZoneWidthDp.toInt()
+                                    )
+                                },
+                                valueRange = TapLockEdgeZones.MIN_WIDTH_DP.toFloat()..
+                                    TapLockEdgeZones.MAX_WIDTH_DP.toFloat(),
+                                interactionSource = edgeWidthSliderInteraction,
+                                modifier = Modifier.testTag("slider_edge_zone_width")
+                            )
 
-                        Text(
-                            stringResource(
-                                R.string.edge_zone_top_offset_label,
-                                editableEdgeZoneTopOffsetPercent.toInt()
-                            ),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Slider(
-                            value = editableEdgeZoneTopOffsetPercent,
-                            onValueChange = { setEditableTopOffset(it) },
-                            onValueChangeFinished = {
-                                saveSelectedZoneInt(
-                                    edgeZoneTopOffsetPercentKey,
+                            Text(
+                                stringResource(
+                                    R.string.edge_zone_top_offset_label,
                                     editableEdgeZoneTopOffsetPercent.toInt()
-                                )
-                            },
-                            valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
-                                TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
-                            interactionSource = edgeTopOffsetSliderInteraction,
-                            modifier = Modifier.testTag("slider_edge_zone_top_offset")
-                        )
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = editableEdgeZoneTopOffsetPercent,
+                                onValueChange = { setEditableTopOffset(it) },
+                                onValueChangeFinished = {
+                                    saveSelectedZoneInt(
+                                        edgeZoneTopOffsetPercentKey,
+                                        editableEdgeZoneTopOffsetPercent.toInt()
+                                    )
+                                },
+                                valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
+                                    TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
+                                interactionSource = edgeTopOffsetSliderInteraction,
+                                modifier = Modifier.testTag("slider_edge_zone_top_offset")
+                            )
 
-                        Text(
-                            stringResource(
-                                R.string.edge_zone_bottom_offset_label,
-                                editableEdgeZoneBottomOffsetPercent.toInt()
-                            ),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Slider(
-                            value = editableEdgeZoneBottomOffsetPercent,
-                            onValueChange = { setEditableBottomOffset(it) },
-                            onValueChangeFinished = {
-                                saveSelectedZoneInt(
-                                    edgeZoneBottomOffsetPercentKey,
+                            Text(
+                                stringResource(
+                                    R.string.edge_zone_bottom_offset_label,
                                     editableEdgeZoneBottomOffsetPercent.toInt()
-                                )
-                            },
-                            valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
-                                TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
-                            interactionSource = edgeBottomOffsetSliderInteraction,
-                            modifier = Modifier.testTag("slider_edge_zone_bottom_offset")
-                        )
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = editableEdgeZoneBottomOffsetPercent,
+                                onValueChange = { setEditableBottomOffset(it) },
+                                onValueChangeFinished = {
+                                    saveSelectedZoneInt(
+                                        edgeZoneBottomOffsetPercentKey,
+                                        editableEdgeZoneBottomOffsetPercent.toInt()
+                                    )
+                                },
+                                valueRange = TapLockEdgeZones.MIN_OFFSET_PERCENT.toFloat()..
+                                    TapLockEdgeZones.MAX_OFFSET_PERCENT.toFloat(),
+                                interactionSource = edgeBottomOffsetSliderInteraction,
+                                modifier = Modifier.testTag("slider_edge_zone_bottom_offset")
+                            )
+                        }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -1506,27 +1521,33 @@ fun TapLockScreen() {
                     )
 
                     if (anyCornerZoneEnabled) {
-                        Text(
-                            stringResource(
-                                R.string.corner_zone_size_label,
-                                editableCornerZoneSizeDp.toInt()
-                            ),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Slider(
-                            value = editableCornerZoneSizeDp,
-                            onValueChange = { setEditableCornerSize(it) },
-                            onValueChangeFinished = {
-                                saveSelectedZoneInt(
-                                    cornerZoneSizeDpKey,
+                        AdvancedDisclosure(
+                            expanded = cornerAdvancedExpanded,
+                            onToggle = { cornerAdvancedExpanded = !cornerAdvancedExpanded },
+                            testTag = "advanced_corner"
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.corner_zone_size_label,
                                     editableCornerZoneSizeDp.toInt()
-                                )
-                            },
-                            valueRange = TapLockEdgeZones.MIN_CORNER_SIZE_DP.toFloat()..
-                                TapLockEdgeZones.MAX_CORNER_SIZE_DP.toFloat(),
-                            interactionSource = cornerSizeSliderInteraction,
-                            modifier = Modifier.testTag("slider_corner_zone_size")
-                        )
+                                ),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Slider(
+                                value = editableCornerZoneSizeDp,
+                                onValueChange = { setEditableCornerSize(it) },
+                                onValueChangeFinished = {
+                                    saveSelectedZoneInt(
+                                        cornerZoneSizeDpKey,
+                                        editableCornerZoneSizeDp.toInt()
+                                    )
+                                },
+                                valueRange = TapLockEdgeZones.MIN_CORNER_SIZE_DP.toFloat()..
+                                    TapLockEdgeZones.MAX_CORNER_SIZE_DP.toFloat(),
+                                interactionSource = cornerSizeSliderInteraction,
+                                modifier = Modifier.testTag("slider_corner_zone_size")
+                            )
+                        }
                     }
 
                     if (anyEdgeZoneEnabled || anyCornerZoneEnabled) {

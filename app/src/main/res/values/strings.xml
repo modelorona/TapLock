@@ -63,6 +63,7 @@
     <string name="tap_mode_off">Off</string>
     <string name="tap_mode_double_tap">Double-Tap</string>
     <string name="tap_mode_single_tap">Single-Tap</string>
+    <string name="advanced_disclosure_label">Advanced</string>
     <string name="edge_zone_width_dp" translatable="false">edge_zone_width_dp</string>
     <string name="corner_zone_size_dp" translatable="false">corner_zone_size_dp</string>
     <string name="edge_zone_coverage_percent" translatable="false">edge_zone_coverage_percent</string>

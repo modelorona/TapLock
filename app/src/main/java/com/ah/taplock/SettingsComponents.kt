@@ -133,6 +133,56 @@ fun InfoSection(
 }
 
 @Composable
+fun AdvancedDisclosure(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    testTag: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        label = "advancedChevron"
+    )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggle() }
+                .testTag(testTag),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                stringResource(R.string.advanced_disclosure_label),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Icon(
+                imageVector = Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(18.dp)
+                    .rotate(chevronRotation)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                content = content
+            )
+        }
+    }
+}
+
+@Composable
 fun DoubleTapTestArea(timeoutMs: Int) {
     val detector = remember { DoubleTapDetector() }
     var showSuccess by remember { mutableStateOf(false) }
