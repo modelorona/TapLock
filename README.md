@@ -6,6 +6,7 @@
 [![Kotlin](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmodelorona%2FTapLock%2Fmain%2Fgradle%2Flibs.versions.toml&query=%24.versions.kotlin&label=kotlin&color=purple&logo=kotlin)](https://kotlinlang.org)
 [![AGP](https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmodelorona%2FTapLock%2Fmain%2Fgradle%2Flibs.versions.toml&query=%24.versions.agp&label=AGP&logo=androidstudio&color=green)](https://developer.android.com/studio)
 [![Download on Google Play](https://img.shields.io/badge/Download_It-Play_Store-green?logo=googleplay)](https://play.google.com/store/apps/details?id=com.ah.taplock)
+![F-Droid Version](https://img.shields.io/f-droid/v/com.ah.taplock)
 
 
 <img src="app/src/main/ic_launcher-playstore.png" width="256" style="display: block; margin: auto;" alt="TapLock Logo">
@@ -57,7 +58,7 @@ You don't have to trust our privacy claims - you can verify them yourself in the
 
 ### Installation
 
-1. Download the application from [Google Play](https://play.google.com/store/apps/details?id=com.ah.taplock) or F-Droid (coming soon!)
+1. Download the application from [Google Play](https://play.google.com/store/apps/details?id=com.ah.taplock) or [F-Droid](https://f-droid.org/en/packages/com.ah.taplock/)
 2. Add the widget to your home screen:
     - Long press on your home screen
     - Select "Widgets"
