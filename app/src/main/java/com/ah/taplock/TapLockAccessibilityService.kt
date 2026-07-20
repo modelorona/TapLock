@@ -7,9 +7,11 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Display
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -735,7 +737,13 @@ class TapLockAccessibilityService : AccessibilityService() {
 
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val metrics = wm.currentWindowMetrics
-        val cutoutBounds = metrics.windowInsets.displayCutout
+        // Query the cutout from the physical Display via DisplayManager rather than
+        // WindowMetrics.windowInsets: an AccessibilityService has no attached window, so
+        // window-scoped insets can report no cutout even on devices with a real notch/
+        // punch-hole. Context.getDisplay() itself throws from a non-visual context like a
+        // bare Service, so look the Display up by ID through DisplayManager instead.
+        val displayManager = getSystemService(DisplayManager::class.java)
+        val cutoutBounds = displayManager?.getDisplay(Display.DEFAULT_DISPLAY)?.cutout
             ?.boundingRects
             .orEmpty()
             .map { rect ->
