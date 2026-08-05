@@ -81,7 +81,31 @@
       "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb shell *)",
       "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb exec-out *)",
       "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb devices *)",
-      "Bash(./gradlew compileDebugKotlin testDebugUnitTest lintDebug -q)"
+      "Bash(./gradlew compileDebugKotlin testDebugUnitTest lintDebug -q)",
+      "Bash(ruby --version)",
+      "Bash(bundle --version)",
+      "Read(//Users/ah/.rbenv/versions/**)",
+      "Bash(find / -maxdepth 4 -iname \"ruby\" -type f)",
+      "Bash(/Users/ah/Library/Android/sdk/emulator/emulator -list-avds)",
+      "Bash(/Users/ah/Library/Android/sdk/emulator/emulator -avd Pixel_10 -no-snapshot-load)",
+      "Bash(disown)",
+      "Bash(echo \"launched pid=$!\")",
+      "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb emu *)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/ah/Documents/TapLock/fastlane/metadata/android/en-US/images/phoneScreenshots/01_settings_1784303252247.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/ah/Documents/TapLock/fastlane/metadata/android/en-US/images/sevenInchScreenshots/01_settings_1784029471562.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/ah/Documents/TapLock/fastlane/metadata/android/en-US/images/tenInchScreenshots/01_settings_1784030076286.png)",
+      "Bash(rm fastlane/metadata/android/en-US/images/phoneScreenshots/01_settings_1784303252247.png)",
+      "Bash(rm fastlane/metadata/android/en-US/images/phoneScreenshots/02_widget_styles_1784303252415.png)",
+      "Bash(rm fastlane/metadata/android/en-US/images/phoneScreenshots/03_quick_tile_1784303252519.png)",
+      "Bash(rm fastlane/metadata/android/en-US/images/phoneScreenshots/04_ambient_triggers_1784303252617.png)",
+      "Bash(rm fastlane/metadata/android/en-US/images/phoneScreenshots/05_behavior_1784303252716.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight fastlane/metadata/android/en-US/images/phoneScreenshots/*.png)",
+      "Bash(sips *)",
+      "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb -s emulator-5556 emu kill)",
+      "Bash(./gradlew testDebugUnitTest lintDebug -q)",
+      "Bash(/Users/ah/Library/Android/sdk/platform-tools/adb logcat *)",
+      "Bash(kill 87106)",
+      "Bash(kill 92743)"
     ]
   }
 }
