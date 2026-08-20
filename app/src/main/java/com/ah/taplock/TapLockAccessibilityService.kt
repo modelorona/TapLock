@@ -44,6 +44,8 @@ class TapLockAccessibilityService : AccessibilityService() {
     private var bottomLeftCornerOverlay: View? = null
     private var bottomRightCornerOverlay: View? = null
     private var floatingLockButton: View? = null
+    private var floatingButtonPreviewSizeDp: Int? = null
+    private var floatingButtonPreviewOpacityPercent: Int? = null
     private val doubleTapDetector = DoubleTapDetector()
     private val leftEdgeDoubleTapDetector = DoubleTapDetector()
     private val rightEdgeDoubleTapDetector = DoubleTapDetector()
@@ -204,12 +206,25 @@ class TapLockAccessibilityService : AccessibilityService() {
 
     /** Updates the floating button after its backing icon file changes. */
     fun refreshFloatingLockButton() {
+        floatingButtonPreviewSizeDp = null
+        floatingButtonPreviewOpacityPercent = null
         updateFloatingLockButton()
+    }
+
+    /** Applies slider values to the visible button without persisting them. */
+    fun previewFloatingLockButton(sizeDp: Int, opacityPercent: Int) {
+        if (floatingLockButton == null) return
+        floatingButtonPreviewSizeDp = TapLockFloatingButtonConfig.clampSizeDp(sizeDp)
+        floatingButtonPreviewOpacityPercent =
+            TapLockFloatingButtonConfig.clampOpacityPercent(opacityPercent)
+        updateFloatingLockButtonLayout()
     }
 
     private fun updateFloatingLockButton() {
         val enabled = getPrefs().getBoolean(getString(R.string.floating_button_enabled), false)
         if (!enabled) {
+            floatingButtonPreviewSizeDp = null
+            floatingButtonPreviewOpacityPercent = null
             removeFloatingLockButton()
             return
         }
@@ -368,14 +383,14 @@ class TapLockAccessibilityService : AccessibilityService() {
         val prefs = getPrefs()
         val size = dpToPx(
             TapLockFloatingButtonConfig.clampSizeDp(
-                prefs.getInt(
+                floatingButtonPreviewSizeDp ?: prefs.getInt(
                     getString(R.string.floating_button_size_dp),
                     TapLockFloatingButtonConfig.DEFAULT_SIZE_DP
                 )
             )
         )
         val opacity = TapLockFloatingButtonConfig.clampOpacityPercent(
-            prefs.getInt(
+            floatingButtonPreviewOpacityPercent ?: prefs.getInt(
                 getString(R.string.floating_button_opacity_percent),
                 TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT
             )

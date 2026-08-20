@@ -215,12 +215,14 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         mutableFloatStateOf(TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP.toFloat())
     }
     var floatingButtonEnabled by remember { mutableStateOf(false) }
-    var floatingButtonSizeDp by remember {
+    val floatingButtonSizeDpState = remember {
         mutableFloatStateOf(TapLockFloatingButtonConfig.DEFAULT_SIZE_DP.toFloat())
     }
-    var floatingButtonOpacityPercent by remember {
+    var floatingButtonSizeDp by floatingButtonSizeDpState
+    val floatingButtonOpacityPercentState = remember {
         mutableFloatStateOf(TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT.toFloat())
     }
+    var floatingButtonOpacityPercent by floatingButtonOpacityPercentState
     var isTileAdded by remember { mutableStateOf(false) }
     var widgetCount by remember { mutableIntStateOf(0) }
     var widgetIconBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -364,6 +366,20 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     fun refreshFloatingLockButtonIfRunning() {
         if (floatingButtonEnabled) {
             TapLockAccessibilityService.instance?.refreshFloatingLockButton()
+        }
+    }
+
+    fun previewFloatingLockButtonIfRunning(
+        sizeDp: Float = floatingButtonSizeDp,
+        opacityPercent: Float = floatingButtonOpacityPercent
+    ) {
+        if (floatingButtonEnabled) {
+            TapLockAccessibilityService.instance?.previewFloatingLockButton(
+                sizeDp = TapLockFloatingButtonConfig.clampSizeDp(sizeDp.toInt()),
+                opacityPercent = TapLockFloatingButtonConfig.clampOpacityPercent(
+                    opacityPercent.toInt()
+                )
+            )
         }
     }
 
@@ -1166,10 +1182,16 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                     )
                     Slider(
                         value = floatingButtonSizeDp,
-                        onValueChange = { floatingButtonSizeDp = it },
+                        onValueChange = {
+                            floatingButtonSizeDp = it
+                            previewFloatingLockButtonIfRunning(
+                                sizeDp = it,
+                                opacityPercent = floatingButtonOpacityPercentState.floatValue
+                            )
+                        },
                         onValueChangeFinished = {
                             val clamped = TapLockFloatingButtonConfig.clampSizeDp(
-                                floatingButtonSizeDp.toInt()
+                                floatingButtonSizeDpState.floatValue.toInt()
                             )
                             floatingButtonSizeDp = clamped.toFloat()
                             context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -1192,10 +1214,16 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                     )
                     Slider(
                         value = floatingButtonOpacityPercent,
-                        onValueChange = { floatingButtonOpacityPercent = it },
+                        onValueChange = {
+                            floatingButtonOpacityPercent = it
+                            previewFloatingLockButtonIfRunning(
+                                sizeDp = floatingButtonSizeDpState.floatValue,
+                                opacityPercent = it
+                            )
+                        },
                         onValueChangeFinished = {
                             val clamped = TapLockFloatingButtonConfig.clampOpacityPercent(
-                                floatingButtonOpacityPercent.toInt()
+                                floatingButtonOpacityPercentState.floatValue.toInt()
                             )
                             floatingButtonOpacityPercent = clamped.toFloat()
                             context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
