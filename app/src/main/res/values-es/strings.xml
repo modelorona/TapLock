@@ -157,8 +157,4 @@
     <string name="floating_button_opacity_label">Opacidad del botón: %d%%</string>
     <string name="floating_button_preview_label">Vista previa del botón flotante</string>
     <string name="floating_button_hint">Arrástralo para cambiarlo de posición. Se ajusta al borde de pantalla más cercano.</string>
-    <string name="floating_button_notification_channel">Botón flotante</string>
-    <string name="floating_button_notification_title">Botón flotante de TapLock activo</string>
-    <string name="floating_button_notification_body">Toca para abrir ajustes</string>
-    <string name="overlay_permission_required_toast">Se requiere permiso de superposición para el botón flotante</string>
 </resources>

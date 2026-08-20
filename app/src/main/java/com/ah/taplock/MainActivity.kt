@@ -89,7 +89,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
-import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ah.taplock.ui.theme.TapLockTheme
@@ -123,7 +122,7 @@ class MainActivity : ComponentActivity() {
 }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TapLockScreen() {
+fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val githubUrl = stringResource(R.string.github_url)
@@ -164,7 +163,7 @@ fun TapLockScreen() {
     var showDialog by remember { mutableStateOf(false) }
 
     var isAccessibilityEnabled by remember {
-        mutableStateOf(isAccessibilityEnabled(context))
+        mutableStateOf(accessibilityEnabledOverride ?: isAccessibilityEnabled(context))
     }
 
     var isAdvancedProtectionEnabled by remember {
@@ -362,11 +361,10 @@ fun TapLockScreen() {
         refreshWidgetCount()
     }
 
-    fun restartFloatingButtonServiceIfRunning() {
-        if (!floatingButtonEnabled || !Settings.canDrawOverlays(context)) return
-        val serviceIntent = Intent(context, FloatingButtonService::class.java)
-        context.stopService(serviceIntent)
-        context.startForegroundService(serviceIntent)
+    fun refreshFloatingLockButtonIfRunning() {
+        if (floatingButtonEnabled) {
+            TapLockAccessibilityService.instance?.refreshFloatingLockButton()
+        }
     }
 
     fun requestQuickSettingsTilePrompt() {
@@ -507,7 +505,7 @@ fun TapLockScreen() {
                             val newIconFile = File(context.filesDir, "custom_widget_icon.png")
                             widgetIconBitmap = BitmapFactory.decodeFile(newIconFile.absolutePath)?.asImageBitmap()
                             refreshWidgets()
-                            restartFloatingButtonServiceIfRunning()
+                            refreshFloatingLockButtonIfRunning()
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to update custom widget icon", e)
@@ -568,7 +566,7 @@ fun TapLockScreen() {
             context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
 
         val refreshAccessibilityState = {
-            isAccessibilityEnabled = isAccessibilityEnabled(context)
+            isAccessibilityEnabled = accessibilityEnabledOverride ?: isAccessibilityEnabled(context)
         }
 
         // Advanced Protection Mode (Android 16+) blocks third-party accessibility services. Watch
@@ -605,7 +603,7 @@ fun TapLockScreen() {
 
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                isAccessibilityEnabled = isAccessibilityEnabled(context)
+                isAccessibilityEnabled = accessibilityEnabledOverride ?: isAccessibilityEnabled(context)
                 isAdvancedProtectionEnabled = isAdvancedProtectionEnabled(context)
                 val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
@@ -669,12 +667,6 @@ fun TapLockScreen() {
                         TapLockAppRules.loadLaunchableApps(context)
                     }
                     isLoadingApps = false
-                }
-                // If user just granted overlay permission, start the service
-                if (floatingButtonEnabled && !Settings.canDrawOverlays(context)) {
-                    floatingButtonEnabled = false
-                    prefs.edit { putBoolean(floatingButtonKey, false) }
-                    context.stopService(Intent(context, FloatingButtonService::class.java))
                 }
             }
         }
@@ -1057,7 +1049,7 @@ fun TapLockScreen() {
                                     ).show()
                                     widgetIconBitmap = null
                                     refreshWidgets()
-                                    restartFloatingButtonServiceIfRunning()
+                                    refreshFloatingLockButtonIfRunning()
                                 }
                             },
                             modifier = Modifier.weight(1f)
@@ -1138,25 +1130,9 @@ fun TapLockScreen() {
                     Switch(
                         checked = floatingButtonEnabled,
                         onCheckedChange = { isChecked ->
-                            if (isChecked && !Settings.canDrawOverlays(context)) {
-                                TapLockFeedback.showOverlayPermissionRequired(context)
-                                context.startActivity(
-                                    Intent(
-                                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                        "package:${context.packageName}".toUri()
-                                    )
-                                )
-                                return@Switch
-                            }
                             floatingButtonEnabled = isChecked
                             context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                                 .edit { putBoolean(floatingButtonKey, isChecked) }
-                            val serviceIntent = Intent(context, FloatingButtonService::class.java)
-                            if (isChecked) {
-                                context.startForegroundService(serviceIntent)
-                            } else {
-                                context.stopService(serviceIntent)
-                            }
                         },
                         enabled = isAccessibilityEnabled,
                         modifier = Modifier.testTag("switch_floating_button")
@@ -1198,7 +1174,7 @@ fun TapLockScreen() {
                             floatingButtonSizeDp = clamped.toFloat()
                             context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                                 .edit { putInt(floatingButtonSizeDpKey, clamped) }
-                            restartFloatingButtonServiceIfRunning()
+                            refreshFloatingLockButtonIfRunning()
                         },
                         valueRange = TapLockFloatingButtonConfig.MIN_SIZE_DP.toFloat()..
                             TapLockFloatingButtonConfig.MAX_SIZE_DP.toFloat(),
@@ -1224,7 +1200,7 @@ fun TapLockScreen() {
                             floatingButtonOpacityPercent = clamped.toFloat()
                             context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                                 .edit { putInt(floatingButtonOpacityPercentKey, clamped) }
-                            restartFloatingButtonServiceIfRunning()
+                            refreshFloatingLockButtonIfRunning()
                         },
                         valueRange = TapLockFloatingButtonConfig.MIN_OPACITY_PERCENT.toFloat()..
                             TapLockFloatingButtonConfig.MAX_OPACITY_PERCENT.toFloat(),

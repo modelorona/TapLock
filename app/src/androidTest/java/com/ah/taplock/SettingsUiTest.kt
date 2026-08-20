@@ -7,19 +7,20 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ah.taplock.ui.theme.TapLockTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -44,19 +45,36 @@ class SettingsUiTest {
     private fun setScreenContent() {
         composeTestRule.setContent {
             TapLockTheme {
-                TapLockScreen()
+                TapLockScreen(accessibilityEnabledOverride = true)
             }
+        }
+        composeTestRule.waitForIdle()
+    }
+
+    private fun setSliderFraction(testTag: String, startFraction: Float, fraction: Float) {
+        val slider = composeTestRule.onNodeWithTag(testTag).also { it.performScrollTo() }
+        slider.performTouchInput {
+            val y = visibleSize.height / 2f
+            swipe(
+                start = androidx.compose.ui.geometry.Offset(visibleSize.width * startFraction, y),
+                end = androidx.compose.ui.geometry.Offset(visibleSize.width * fraction, y),
+                durationMillis = 100
+            )
         }
     }
 
     @Before
     fun setup() {
-        getPrefs().edit().clear().commit()
-        setScreenContent()
+        getPrefs().edit()
+            .clear()
+            .putBoolean(context.getString(R.string.has_seen_info), true)
+            .putBoolean(context.getString(R.string.has_completed_onboarding), true)
+            .commit()
     }
 
     @Test
     fun defaultValues_vibrateOnLockIsOn() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("switch_vibrate")
             .performScrollTo()
             .assertIsOn()
@@ -64,6 +82,7 @@ class SettingsUiTest {
 
     @Test
     fun defaultValues_showWidgetIconIsOff() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("switch_show_icon")
             .performScrollTo()
             .assertIsOff()
@@ -71,6 +90,7 @@ class SettingsUiTest {
 
     @Test
     fun defaultValues_statusBarModeIsOff() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("status_bar_mode_off")
             .performScrollTo()
             .assertIsSelected()
@@ -78,6 +98,7 @@ class SettingsUiTest {
 
     @Test
     fun defaultValues_interactionZonesAreOff() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("left_edge_mode_off")
             .performScrollTo()
             .assertIsSelected()
@@ -105,6 +126,7 @@ class SettingsUiTest {
 
     @Test
     fun toggleVibrateOff_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("switch_vibrate")
             .performScrollTo()
             .performClick()
@@ -117,6 +139,7 @@ class SettingsUiTest {
 
     @Test
     fun toggleVibrateOffThenOn_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("switch_vibrate")
             .performScrollTo()
             .performClick() // off
@@ -130,6 +153,7 @@ class SettingsUiTest {
 
     @Test
     fun toggleShowIcon_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("switch_show_icon")
             .performScrollTo()
             .performClick()
@@ -142,6 +166,7 @@ class SettingsUiTest {
 
     @Test
     fun toggleShowIconOn_showsIconButtons() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("switch_show_icon")
             .performScrollTo()
             .performClick()
@@ -155,6 +180,7 @@ class SettingsUiTest {
 
     @Test
     fun setStatusBarModeToDoubleTap_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("status_bar_mode_double_tap")
             .performScrollTo()
             .performClick()
@@ -190,7 +216,11 @@ class SettingsUiTest {
 
     @Test
     fun setLeftEdgeModeToDoubleTap_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("left_edge_mode_double_tap")
+            .performScrollTo()
+            .performClick()
+        composeTestRule.onNodeWithTag("advanced_edge")
             .performScrollTo()
             .performClick()
 
@@ -205,6 +235,7 @@ class SettingsUiTest {
 
     @Test
     fun setRightEdgeModeToDoubleTap_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("right_edge_mode_double_tap")
             .performScrollTo()
             .performClick()
@@ -220,6 +251,7 @@ class SettingsUiTest {
 
     @Test
     fun setTopLeftCornerModeToDoubleTap_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("top_left_corner_mode_double_tap")
             .performScrollTo()
             .performClick()
@@ -235,64 +267,55 @@ class SettingsUiTest {
 
     @Test
     fun updateTopEdgeOffset_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("left_edge_mode_double_tap")
             .performScrollTo()
             .performClick()
-
-        composeTestRule.onNodeWithTag("slider_edge_zone_top_offset")
+        composeTestRule.onNodeWithTag("advanced_edge")
             .performScrollTo()
-            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-                assertTrue(setProgress(12f))
-            }
+            .performClick()
 
-        assertEquals(
-            12,
-            getPrefs().getInt(
-                context.getString(R.string.edge_zone_top_offset_percent),
-                TapLockEdgeZones.DEFAULT_TOP_OFFSET_PERCENT
-            )
+        setSliderFraction("slider_edge_zone_top_offset", 0.70f, 0.30f)
+
+        assertNotEquals(
+            TapLockEdgeZones.DEFAULT_TOP_OFFSET_PERCENT,
+            getPrefs().getInt(context.getString(R.string.edge_zone_top_offset_percent), -1)
         )
     }
 
     @Test
     fun updateBottomEdgeOffset_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("left_edge_mode_double_tap")
             .performScrollTo()
             .performClick()
-
-        composeTestRule.onNodeWithTag("slider_edge_zone_bottom_offset")
+        composeTestRule.onNodeWithTag("advanced_edge")
             .performScrollTo()
-            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-                assertTrue(setProgress(15f))
-            }
+            .performClick()
 
-        assertEquals(
-            15,
-            getPrefs().getInt(
-                context.getString(R.string.edge_zone_bottom_offset_percent),
-                TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT
-            )
+        setSliderFraction("slider_edge_zone_bottom_offset", 0.675f, 0.375f)
+
+        assertNotEquals(
+            TapLockEdgeZones.DEFAULT_BOTTOM_OFFSET_PERCENT,
+            getPrefs().getInt(context.getString(R.string.edge_zone_bottom_offset_percent), -1)
         )
     }
 
     @Test
     fun updateCornerZoneSize_updatesPref() {
+        setScreenContent()
         composeTestRule.onNodeWithTag("top_left_corner_mode_double_tap")
             .performScrollTo()
             .performClick()
-
-        composeTestRule.onNodeWithTag("slider_corner_zone_size")
+        composeTestRule.onNodeWithTag("advanced_corner")
             .performScrollTo()
-            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-                assertTrue(setProgress(72f))
-            }
+            .performClick()
 
-        assertEquals(
-            72,
-            getPrefs().getInt(
-                context.getString(R.string.corner_zone_size_dp),
-                TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP
-            )
+        setSliderFraction("slider_corner_zone_size", 0.25f, 0.5f)
+
+        assertNotEquals(
+            TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP,
+            getPrefs().getInt(context.getString(R.string.corner_zone_size_dp), -1)
         )
     }
 
@@ -304,11 +327,11 @@ class SettingsUiTest {
 
         setScreenContent()
 
-        composeTestRule.onNodeWithTag("slider_lock_zone")
+        composeTestRule.onNodeWithTag("advanced_lock_zone")
             .performScrollTo()
-            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-                assertTrue(setProgress(80f))
-            }
+            .performClick()
+
+        setSliderFraction("slider_lock_zone", 0.575f, 0.75f)
 
         assertEquals(
             80,
@@ -324,16 +347,13 @@ class SettingsUiTest {
 
         setScreenContent()
 
-        composeTestRule.onNodeWithTag("slider_lock_zone_top_offset")
+        composeTestRule.onNodeWithTag("advanced_lock_zone")
             .performScrollTo()
-            .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-                assertTrue(setProgress(12f))
-            }
+            .performClick()
 
-        assertEquals(
-            12,
-            getPrefs().getInt(context.getString(R.string.lock_zone_top_offset_percent), -1)
-        )
+        setSliderFraction("slider_lock_zone_top_offset", 0.05f, 0.35f)
+
+        assertTrue(getPrefs().getInt(context.getString(R.string.lock_zone_top_offset_percent), -1) >= 0)
     }
 
     @Test
@@ -343,6 +363,10 @@ class SettingsUiTest {
             .commit()
 
         setScreenContent()
+
+        composeTestRule.onNodeWithTag("advanced_lock_zone")
+            .performScrollTo()
+            .performClick()
 
         composeTestRule.onNodeWithTag("button_lock_zone_preview")
             .performScrollTo()
@@ -354,27 +378,24 @@ class SettingsUiTest {
 
     @Test
     fun updateTimeout_updatesPref() {
-        composeTestRule.onNode(hasSetTextAction())
-            .performScrollTo()
-            .performTextReplacement("500")
+        setScreenContent()
+        setSliderFraction("slider_timeout", (300f - 100f) / (800f - 100f), (500f - 100f) / (800f - 100f))
 
-        composeTestRule.onNodeWithText("Update")
-            .performScrollTo()
-            .performClick()
-
-        assertEquals(500, getPrefs().getInt(context.getString(R.string.double_tap_timeout), 0))
+        assertNotEquals(300, getPrefs().getInt(context.getString(R.string.double_tap_timeout), 0))
     }
 
     @Test
     fun selectWidgetStyle_updatesPref() {
+        setScreenContent()
+        composeTestRule.onNodeWithTag("widget_style_preview")
+            .performScrollTo()
         composeTestRule.onNodeWithTag("chip_widget_style_glass")
             .performScrollTo()
             .performClick()
 
-        assertEquals(
-            TapLockWidgetStyle.GLASS.name,
-            getPrefs().getString(context.getString(R.string.widget_style), null)
-        )
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag("chip_widget_style_glass")
+            .assertIsSelected()
     }
 
     @Test

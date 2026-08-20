@@ -16,9 +16,8 @@ Android screen-lock utility using accessibility services and widgets. Single-mod
 Single `:app` module. All source in `app/src/main/java/com/ah/taplock/`:
 
 - **MainActivity.kt** — Compose settings UI, onboarding flow, permission management
-- **TapLockAccessibilityService.kt** — Core service: overlay management, double-tap detection on status bar and lock screen
+- **TapLockAccessibilityService.kt** — Core service: accessibility overlays, floating lock button, and double-tap detection on status bar and lock screen
 - **TapLockWidgetProvider.kt** — RemoteViews-based 1x1 widget
-- **FloatingButtonService.kt** — Draggable overlay button (foreground service)
 - **TapLockTileService.kt** — Quick Settings tile
 - **DoubleTapDetector.kt** — Time-window tap detection with injectable clock
 - **VibrationHelper.kt** — API-level-aware vibration (Android 13+ vs older)

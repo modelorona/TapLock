@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.KeyguardManager
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.hardware.display.DisplayManager
@@ -20,6 +21,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
+import android.widget.ImageView
 import androidx.annotation.StringRes
 import androidx.core.content.edit
 import kotlin.math.abs
@@ -41,6 +43,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     private var topRightCornerOverlay: View? = null
     private var bottomLeftCornerOverlay: View? = null
     private var bottomRightCornerOverlay: View? = null
+    private var floatingLockButton: View? = null
     private val doubleTapDetector = DoubleTapDetector()
     private val leftEdgeDoubleTapDetector = DoubleTapDetector()
     private val rightEdgeDoubleTapDetector = DoubleTapDetector()
@@ -71,6 +74,7 @@ class TapLockAccessibilityService : AccessibilityService() {
             serviceInfo = info
         }
         updateOverlay()
+        updateFloatingLockButton()
         registerPrefListener()
     }
 
@@ -79,6 +83,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         removeStatusBarOverlay()
         removeEdgeOverlays()
         removeCornerOverlays()
+        removeFloatingLockButton()
         unregisterPrefListener()
         return super.onUnbind(intent)
     }
@@ -88,6 +93,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         removeStatusBarOverlay()
         removeEdgeOverlays()
         removeCornerOverlays()
+        removeFloatingLockButton()
         unregisterPrefListener()
         super.onDestroy()
     }
@@ -125,6 +131,7 @@ class TapLockAccessibilityService : AccessibilityService() {
             updateInteractiveZoneOverlays()
             updateOverlayTouchability()
             updateOverlayForLockScreen()
+            updateFloatingLockButtonLayout()
         }
     }
 
@@ -163,6 +170,11 @@ class TapLockAccessibilityService : AccessibilityService() {
 
                 key == getString(R.string.excluded_apps) -> updateOverlayTouchability()
 
+                key == getString(R.string.floating_button_enabled) ||
+                    key == getString(R.string.floating_button_size_dp) ||
+                    key == getString(R.string.floating_button_opacity_percent) ->
+                    updateFloatingLockButton()
+
                 key == getString(R.string.lock_zone_percent) -> {
                     if (statusBarOverlay != null) updateOverlayForLockScreen()
                 }
@@ -189,6 +201,225 @@ class TapLockAccessibilityService : AccessibilityService() {
         updateStatusBarOverlay()
         updateInteractiveZoneOverlays()
     }
+
+    /** Updates the floating button after its backing icon file changes. */
+    fun refreshFloatingLockButton() {
+        updateFloatingLockButton()
+    }
+
+    private fun updateFloatingLockButton() {
+        val enabled = getPrefs().getBoolean(getString(R.string.floating_button_enabled), false)
+        if (!enabled) {
+            removeFloatingLockButton()
+            return
+        }
+
+        if (floatingLockButton == null) {
+            addFloatingLockButton()
+        } else {
+            updateFloatingLockButtonLayout()
+        }
+    }
+
+    @Suppress("ClickableViewAccessibility")
+    private fun addFloatingLockButton() {
+        if (floatingLockButton != null) return
+
+        val prefs = getPrefs()
+        val size = dpToPx(
+            TapLockFloatingButtonConfig.clampSizeDp(
+                prefs.getInt(
+                    getString(R.string.floating_button_size_dp),
+                    TapLockFloatingButtonConfig.DEFAULT_SIZE_DP
+                )
+            )
+        )
+        val opacity = TapLockFloatingButtonConfig.clampOpacityPercent(
+            prefs.getInt(
+                getString(R.string.floating_button_opacity_percent),
+                TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT
+            )
+        ) / 100f
+        val customIconFile = java.io.File(filesDir, "custom_widget_icon.png")
+        val iconPadding = (size * 0.16f).toInt()
+        val button = ImageView(this).apply {
+            setBackgroundResource(R.drawable.floating_button_bg)
+            setPadding(iconPadding, iconPadding, iconPadding, iconPadding)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            if (customIconFile.exists()) {
+                setImageBitmap(BitmapFactory.decodeFile(customIconFile.absolutePath))
+            } else {
+                setImageDrawable(packageManager.getApplicationIcon(packageName))
+            }
+            alpha = opacity
+            elevation = dpToPx(4).toFloat()
+        }
+
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val bounds = wm.currentWindowMetrics.bounds
+        val savedX = prefs.getInt(getString(R.string.floating_button_position_x), -1)
+        val savedY = prefs.getInt(getString(R.string.floating_button_position_y), -1)
+        val params = WindowManager.LayoutParams(
+            size,
+            size,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = if (savedX >= 0) {
+                savedX.coerceIn(0, (bounds.width() - size).coerceAtLeast(0))
+            } else {
+                0
+            }
+            y = if (savedY >= 0) {
+                savedY.coerceIn(0, (bounds.height() - size).coerceAtLeast(0))
+            } else {
+                dpToPx(200).coerceIn(0, (bounds.height() - size).coerceAtLeast(0))
+            }
+            layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
+
+        var initialX = 0
+        var initialY = 0
+        var initialTouchX = 0f
+        var initialTouchY = 0f
+        var isDragging = false
+        val touchSlop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+
+        button.setOnTouchListener { view, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialX = params.x
+                    initialY = params.y
+                    initialTouchX = event.rawX
+                    initialTouchY = event.rawY
+                    isDragging = false
+                    true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - initialTouchX
+                    val dy = event.rawY - initialTouchY
+                    if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) {
+                        isDragging = true
+                    }
+                    if (isDragging) {
+                        val currentBounds = wm.currentWindowMetrics.bounds
+                        params.x = (initialX + dx.toInt()).coerceIn(
+                            0,
+                            (currentBounds.width() - params.width).coerceAtLeast(0)
+                        )
+                        params.y = (initialY + dy.toInt()).coerceIn(
+                            0,
+                            (currentBounds.height() - params.height).coerceAtLeast(0)
+                        )
+                        wm.updateViewLayout(button, params)
+                    }
+                    true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    if (isDragging) {
+                        val currentBounds = wm.currentWindowMetrics.bounds
+                        params.x = if (params.x + (params.width / 2) < currentBounds.width() / 2) {
+                            0
+                        } else {
+                            (currentBounds.width() - params.width).coerceAtLeast(0)
+                        }
+                        params.y = params.y.coerceIn(
+                            0,
+                            (currentBounds.height() - params.height).coerceAtLeast(0)
+                        )
+                        wm.updateViewLayout(button, params)
+                        persistFloatingButtonPosition(params.x, params.y)
+                    } else {
+                        if (isForegroundAppExcludedNow()) {
+                            TapLockFeedback.showAppExcluded(this)
+                        } else {
+                            val buttonPrefs = getPrefs()
+                            if (buttonPrefs.getBoolean(getString(R.string.vibrate_on_lock), true)) {
+                                VibrationHelper.vibrate(this, VibrationHelper.fromPrefs(this))
+                            }
+                            lockScreen()
+                        }
+                    }
+                    view.performClick()
+                    true
+                }
+
+                MotionEvent.ACTION_CANCEL -> {
+                    isDragging = false
+                    true
+                }
+
+                else -> false
+            }
+        }
+
+        wm.addView(button, params)
+        floatingLockButton = button
+    }
+
+    private fun updateFloatingLockButtonLayout() {
+        val button = floatingLockButton ?: return
+        val prefs = getPrefs()
+        val size = dpToPx(
+            TapLockFloatingButtonConfig.clampSizeDp(
+                prefs.getInt(
+                    getString(R.string.floating_button_size_dp),
+                    TapLockFloatingButtonConfig.DEFAULT_SIZE_DP
+                )
+            )
+        )
+        val opacity = TapLockFloatingButtonConfig.clampOpacityPercent(
+            prefs.getInt(
+                getString(R.string.floating_button_opacity_percent),
+                TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT
+            )
+        ) / 100f
+        button.alpha = opacity
+        val iconPadding = (size * 0.16f).toInt()
+        button.setPadding(iconPadding, iconPadding, iconPadding, iconPadding)
+        val params = button.layoutParams as WindowManager.LayoutParams
+        val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val bounds = wm.currentWindowMetrics.bounds
+        val x = params.x.coerceIn(0, (bounds.width() - size).coerceAtLeast(0))
+        val y = params.y.coerceIn(0, (bounds.height() - size).coerceAtLeast(0))
+        if (params.width != size || params.height != size || params.x != x || params.y != y) {
+            params.width = size
+            params.height = size
+            params.x = x
+            params.y = y
+            wm.updateViewLayout(button, params)
+            persistFloatingButtonPosition(x, y)
+        }
+        val iconFile = java.io.File(filesDir, "custom_widget_icon.png")
+        if (iconFile.exists()) {
+            (button as ImageView).setImageBitmap(BitmapFactory.decodeFile(iconFile.absolutePath))
+        } else {
+            (button as ImageView).setImageDrawable(packageManager.getApplicationIcon(packageName))
+        }
+    }
+
+    private fun removeFloatingLockButton() {
+        floatingLockButton?.let {
+            (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(it)
+        }
+        floatingLockButton = null
+    }
+
+    private fun persistFloatingButtonPosition(x: Int, y: Int) {
+        getPrefs().edit {
+            putInt(getString(R.string.floating_button_position_x), x)
+            putInt(getString(R.string.floating_button_position_y), y)
+        }
+    }
+
+    private fun dpToPx(valueDp: Int): Int =
+        (valueDp * resources.displayMetrics.density).toInt()
 
     private fun updateStatusBarOverlay() {
         val prefs = getPrefs()

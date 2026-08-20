@@ -56,18 +56,16 @@ class AppExclusionDialogTest {
         composeTestRule.onNodeWithTag("field_app_exclusions_search")
             .performTextReplacement("aegis")
 
-        composeTestRule.runOnIdle {
-            assertEquals(
-                1,
-                composeTestRule.onAllNodesWithText("Aegis Launcher").fetchSemanticsNodes().size
-            )
-            assertTrue(
-                composeTestRule.onAllNodesWithText("Play Store").fetchSemanticsNodes().isEmpty()
-            )
-            assertTrue(
-                composeTestRule.onAllNodesWithText("Notes").fetchSemanticsNodes().isEmpty()
-            )
-        }
+        assertEquals(
+            1,
+            composeTestRule.onAllNodesWithText("Aegis Launcher").fetchSemanticsNodes().size
+        )
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Play Store").fetchSemanticsNodes().isEmpty()
+        )
+        assertTrue(
+            composeTestRule.onAllNodesWithText("Notes").fetchSemanticsNodes().isEmpty()
+        )
     }
 
     @Test
@@ -91,14 +89,12 @@ class AppExclusionDialogTest {
         composeTestRule.onNodeWithTag("field_app_exclusions_search")
             .performTextReplacement("does-not-exist")
 
-        composeTestRule.runOnIdle {
-            assertEquals(
-                1,
-                composeTestRule.onAllNodesWithText(
-                    context.getString(R.string.app_exclusions_no_results)
-                ).fetchSemanticsNodes().size
-            )
-        }
+        assertEquals(
+            1,
+            composeTestRule.onAllNodesWithText(
+                context.getString(R.string.app_exclusions_no_results)
+            ).fetchSemanticsNodes().size
+        )
     }
 
     @Test
@@ -123,9 +119,7 @@ class AppExclusionDialogTest {
         composeTestRule.onNodeWithTag("app_exclusion_row_com.aegis.launcher")
             .performClick()
 
-        composeTestRule.runOnIdle {
-            assertEquals("com.aegis.launcher", toggledPackage)
-        }
+        assertEquals("com.aegis.launcher", toggledPackage)
     }
 
     @Test
@@ -151,8 +145,6 @@ class AppExclusionDialogTest {
             .assertIsEnabled()
             .performClick()
 
-        composeTestRule.runOnIdle {
-            assertEquals(1, clearCalls)
-        }
+        assertEquals(1, clearCalls)
     }
 }

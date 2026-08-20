@@ -198,8 +198,4 @@
     <string name="floating_button_opacity_label">Button opacity: %d%%</string>
     <string name="floating_button_preview_label">Floating button preview</string>
     <string name="floating_button_hint">Drag it to reposition. It snaps to the nearest screen edge.</string>
-    <string name="floating_button_notification_channel">Floating Button</string>
-    <string name="floating_button_notification_title">TapLock floating button active</string>
-    <string name="floating_button_notification_body">Tap to open settings</string>
-    <string name="overlay_permission_required_toast">Overlay permission is required for the floating button</string>
 </resources>

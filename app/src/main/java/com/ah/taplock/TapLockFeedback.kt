@@ -13,10 +13,6 @@ object TapLockFeedback {
         toast(context, R.string.accessibility_permission_required, Toast.LENGTH_LONG)
     }
 
-    fun showOverlayPermissionRequired(context: Context) {
-        toast(context, R.string.overlay_permission_required_toast)
-    }
-
     fun showWidgetPinUnsupported(context: Context) {
         toast(context, R.string.widget_pin_not_supported_toast, Toast.LENGTH_LONG)
     }
