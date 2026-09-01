@@ -20,6 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
+/**
+ * Miniature phone mockup shown in settings that mirrors the configured edge and corner zones.
+ * Dimensions are scaled to the fixed preview frame, not real screen pixels, so widths map the
+ * supported dp range onto a visually useful size.
+ */
 @Composable
 fun EdgeZonePreview(
     leftEnabled: Boolean,
@@ -162,6 +167,10 @@ fun EdgeZonePreview(
     }
 }
 
+/**
+ * Full-screen translucent overlay drawn while the user drags an edge/corner slider, showing the
+ * real zone positions at true dp sizes on the actual screen.
+ */
 @Composable
 fun EdgeZoneLiveOverlay(
     leftEnabled: Boolean,

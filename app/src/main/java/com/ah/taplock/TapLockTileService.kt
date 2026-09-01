@@ -11,25 +11,38 @@ import android.service.quicksettings.TileService
 import android.widget.Toast
 import androidx.core.content.edit
 
+/**
+ * Quick Settings tile that locks the screen on tap. Mirrors the widget's lock strategy: live
+ * service instance first, root shell second, startService fallback, otherwise point the user at
+ * accessibility settings. Also tracks whether the tile is currently added, for the settings UI.
+ */
 class TapLockTileService : TileService() {
 
+    /** Records that the tile was added and syncs its visual state. */
     override fun onTileAdded() {
         super.onTileAdded()
         persistTileAdded(true)
         updateTileState()
     }
 
+    /** Records that the tile was removed from Quick Settings. */
     override fun onTileRemoved() {
         persistTileAdded(false)
         super.onTileRemoved()
     }
 
+    /** Refreshes tile state each time the Quick Settings panel becomes visible. */
     override fun onStartListening() {
         super.onStartListening()
         persistTileAdded(true)
         updateTileState()
     }
 
+    /**
+     * Locks the screen unless the foreground app is excluded, applying the configured vibration
+     * and lock delay. Falls back through root and startService paths when the service instance
+     * is unavailable, and opens accessibility settings as a last resort.
+     */
     override fun onClick() {
         super.onClick()
 
@@ -97,6 +110,7 @@ class TapLockTileService : TileService() {
         }
     }
     
+    /** Updates label, icon, and availability: usable when either lock method is ready. */
     private fun updateTileState() {
         qsTile?.let { tile ->
             val isEnabled = isAccessibilityEnabled(this) || RootLock.isRootLockEnabled(this)
@@ -112,6 +126,7 @@ class TapLockTileService : TileService() {
         }
     }
 
+    /** Persists [isAdded] so the settings screen can show whether the tile is in Quick Settings. */
     private fun persistTileAdded(isAdded: Boolean) {
         getSharedPreferences(getString(R.string.shared_pref_name), MODE_PRIVATE)
             .edit { putBoolean(getString(R.string.quick_settings_tile_added), isAdded) }

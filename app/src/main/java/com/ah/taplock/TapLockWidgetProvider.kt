@@ -15,17 +15,28 @@ import android.widget.RemoteViews
 import android.widget.Toast
 import java.io.File
 
+/**
+ * 1x1 home-screen widget that locks the device on tap. Built on RemoteViews (not Compose/Glance):
+ * taps arrive as self-addressed broadcasts, and double-tap state lives in the companion because
+ * the provider instance is recreated per broadcast.
+ */
 class TapLockWidgetProvider : AppWidgetProvider() {
 
     companion object {
         private const val ACTION_WIDGET_TAP = "com.ah.taplock.widget.TAP"
+        // Static so the tap window survives across provider instances (one per broadcast).
         private val doubleTapDetector = DoubleTapDetector()
 
+        /** Number of TapLock widgets currently placed on the home screen. */
         fun getWidgetCount(context: Context): Int =
             AppWidgetManager.getInstance(context).getAppWidgetIds(
                 ComponentName(context, TapLockWidgetProvider::class.java)
             ).size
 
+        /**
+         * Forces every placed widget to re-render by broadcasting ACTION_APPWIDGET_UPDATE. Needed
+         * after style/icon preference changes because RemoteViews cache the last layout.
+         */
         fun refreshAll(context: Context) {
             val ids = AppWidgetManager.getInstance(context).getAppWidgetIds(
                 ComponentName(context, TapLockWidgetProvider::class.java)
@@ -39,6 +50,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    /** Renders every widget in [appWidgetIds] with the current preferences. */
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -49,6 +61,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    /** Routes the self-addressed [ACTION_WIDGET_TAP] broadcast to the tap handler. */
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
 
@@ -65,6 +78,10 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    /**
+     * Builds and pushes the RemoteViews for one widget: background style, optional icon (custom
+     * PNG from app files or the launcher icon), and the tap PendingIntent.
+     */
     private fun updateAppWidget(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -77,6 +94,8 @@ class TapLockWidgetProvider : AppWidgetProvider() {
             prefs.getString(context.getString(R.string.widget_style), null)
         )
 
+        // RemoteViews can't swap a view's foreground at runtime, so the ripple toggle picks
+        // between two otherwise identical layouts.
         val layoutResId = if (rippleEnabled) R.layout.widget_layout else R.layout.widget_layout_no_ripple
         val views = RemoteViews(context.packageName, layoutResId).apply {
             setOnClickPendingIntent(
@@ -100,6 +119,11 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }
 
+    /**
+     * Applies the widget tap mode (single/double) and, once triggered, locks the screen unless
+     * the foreground app is excluded. Prefers the live service instance, then the root shell,
+     * then a startService fallback when the service is enabled but not yet bound.
+     */
     private fun handleWidgetTap(context: Context) {
         val prefs = context.getSharedPreferences(context.getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
         val mode = TapZoneMode.fromStored(
@@ -143,6 +167,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
                 }
             }
 
+            // Leave the 100 ms vibration lead-in so the haptic is felt before the screen dies.
             val totalDelay = (if (vibrateOnLock) 100L else 0L) + lockDelay
             if (totalDelay > 0) {
                 Handler(Looper.getMainLooper()).postDelayed(lockRunnable, totalDelay)
@@ -152,6 +177,7 @@ class TapLockWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    /** PendingIntent that routes a tap on widget [appWidgetId] back to this provider. */
     private fun getPendingSelfIntent(context: Context, appWidgetId: Int): PendingIntent {
         val intent = Intent(context, TapLockWidgetProvider::class.java).apply {
             this.action = ACTION_WIDGET_TAP

@@ -45,6 +45,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
+/** Standard settings card with a [title], secondary [description], and arbitrary [content]. */
 @Composable
 fun SettingsSectionCard(
     title: String,
@@ -72,6 +73,10 @@ fun SettingsSectionCard(
     }
 }
 
+/**
+ * Collapsible "about" card with app description, instructions, and [disclaimerString].
+ * [expanded] state is hoisted so the screen can persist it across recompositions.
+ */
 @Composable
 fun InfoSection(
     expanded: Boolean,
@@ -132,6 +137,10 @@ fun InfoSection(
     }
 }
 
+/**
+ * Small "Advanced" chevron row that expands to reveal [content]. [testTag] labels the toggle row
+ * for UI tests and screenshot automation.
+ */
 @Composable
 fun AdvancedDisclosure(
     expanded: Boolean,
@@ -182,6 +191,10 @@ fun AdvancedDisclosure(
     }
 }
 
+/**
+ * Practice box that flashes green when a double tap lands within [timeoutMs], letting the user
+ * calibrate the timeout without locking the device.
+ */
 @Composable
 fun DoubleTapTestArea(timeoutMs: Int) {
     val detector = remember { DoubleTapDetector() }
@@ -240,6 +253,10 @@ fun DoubleTapTestArea(timeoutMs: Int) {
     }
 }
 
+/**
+ * Segmented off/double-tap/single-tap selector for one tap zone. Each button gets a test tag
+ * derived from [testTag] and the mode name.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TapModeSelector(

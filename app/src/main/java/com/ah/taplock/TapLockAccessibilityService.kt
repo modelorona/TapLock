@@ -26,11 +26,18 @@ import androidx.annotation.StringRes
 import androidx.core.content.edit
 import kotlin.math.abs
 
+/**
+ * Core accessibility service: hosts the invisible tap-zone overlays (status bar, lock screen,
+ * edges, corners) and the draggable floating lock button, and turns detected taps into screen
+ * locks.
+ */
 class TapLockAccessibilityService : AccessibilityService() {
 
+    /** Static access to the running service for the widget, tile, and settings UI. */
     companion object {
         private const val TAG = "TapLock"
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
+        /** Live service instance, or null while the service is not connected. */
         @Suppress("StaticFieldLeak") // Intentional: cleared in onUnbind/onDestroy
         var instance: TapLockAccessibilityService? = null
             private set
@@ -57,6 +64,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     private var isOnLockScreen = false
     private var currentForegroundPackage: String? = null
 
+    /** Pixel geometry of the status bar / lock screen overlay window. */
     private data class StatusBarOverlayFrame(
         val widthPx: Int,
         val heightPx: Int,
@@ -64,6 +72,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         val yPx: Int
     )
 
+    /**
+     * Publishes the static [instance], opts into window-tracking events (needed to observe the
+     * lock screen and the foreground app), and creates the configured overlays.
+     */
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
@@ -80,6 +92,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         registerPrefListener()
     }
 
+    /** Clears the static [instance] and tears down all overlays when the service is disabled. */
     override fun onUnbind(intent: Intent?): Boolean {
         instance = null
         removeStatusBarOverlay()
@@ -90,6 +103,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         return super.onUnbind(intent)
     }
 
+    /** Same teardown as [onUnbind]; both run so the static [instance] never outlives the service. */
     override fun onDestroy() {
         instance = null
         removeStatusBarOverlay()
@@ -100,6 +114,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
+    /** Handles lock requests delivered as ACTION_SCREEN_OFF intents (e.g. from the widget or tile). */
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == Intent.ACTION_SCREEN_OFF) {
             lockScreen()
@@ -107,6 +122,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
+    /**
+     * Locks the screen using the configured method: root lock when enabled (falling back to the
+     * accessibility lock if the root shell fails), otherwise GLOBAL_ACTION_LOCK_SCREEN.
+     */
     fun lockScreen() {
         if (RootLock.isRootLockEnabled(this)) {
             RootLock.performRootLock(this) { success ->
@@ -117,6 +136,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Increments the lock counter and locks via GLOBAL_ACTION_LOCK_SCREEN. */
     private fun lockScreenWithAccessibility() {
         val prefs = getPrefs()
         val count = prefs.getInt(getString(R.string.lock_count), 0)
@@ -124,11 +144,16 @@ class TapLockAccessibilityService : AccessibilityService() {
         performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
     }
 
+    /** Re-resolves the foreground app and reports whether it is on the exclusion list. */
     fun isForegroundAppExcludedNow(): Boolean {
         refreshForegroundPackage()
         return isCurrentAppExcluded()
     }
 
+    /**
+     * Tracks foreground app changes to keep overlay touchability in sync, and reacts to window
+     * changes (lock screen shown/hidden, shade expanded) by re-laying-out all overlays.
+     */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
 
@@ -147,12 +172,15 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** No-op: the service keeps no interruptible feedback state. */
     override fun onInterrupt() {}
 
+    /** Returns the app's shared preferences file. */
     private fun getPrefs(): SharedPreferences {
         return getSharedPreferences(getString(R.string.shared_pref_name), MODE_PRIVATE)
     }
 
+    /** True when [key] is an edge/corner zone preference that requires a zone re-layout. */
     private fun isZonePreferenceKey(key: String?): Boolean {
         if (key == null) return false
         return key == getString(R.string.left_edge_mode) ||
@@ -167,6 +195,10 @@ class TapLockAccessibilityService : AccessibilityService() {
             key == getString(R.string.edge_zone_bottom_offset_percent)
     }
 
+    /**
+     * Listens for preference changes and applies them live, so overlays react immediately while
+     * the settings UI is open.
+     */
     private fun registerPrefListener() {
         val prefs = getPrefs()
         prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -199,9 +231,11 @@ class TapLockAccessibilityService : AccessibilityService() {
         prefs.registerOnSharedPreferenceChangeListener(prefListener)
     }
 
+    /** Reads the [TapZoneMode] stored under the string resource [key]. */
     private fun getZoneMode(prefs: SharedPreferences, @StringRes key: Int): TapZoneMode =
         TapZoneMode.fromStored(prefs.getString(getString(key), null))
 
+    /** Stops listening for preference changes. */
     private fun unregisterPrefListener() {
         prefListener?.let {
             getPrefs().unregisterOnSharedPreferenceChangeListener(it)
@@ -209,6 +243,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         prefListener = null
     }
 
+    /** Re-evaluates the status bar overlay and all edge/corner zone overlays. */
     private fun updateOverlay() {
         updateStatusBarOverlay()
         updateInteractiveZoneOverlays()
@@ -230,6 +265,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         updateFloatingLockButtonLayout()
     }
 
+    /** Shows, updates, or removes the floating button to match the enabled preference. */
     private fun updateFloatingLockButton() {
         val enabled = getPrefs().getBoolean(getString(R.string.floating_button_enabled), false)
         if (!enabled) {
@@ -246,6 +282,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Creates the draggable floating lock button overlay. A touch within slop is a tap that locks
+     * the screen; a drag moves the button and snaps it to the nearest side on release.
+     */
     @Suppress("ClickableViewAccessibility")
     private fun addFloatingLockButton() {
         if (floatingLockButton != null) return
@@ -349,6 +389,7 @@ class TapLockAccessibilityService : AccessibilityService() {
                 MotionEvent.ACTION_UP -> {
                     if (isDragging) {
                         val currentBounds = wm.currentWindowMetrics.bounds
+                        // Snap to the closer horizontal screen edge.
                         params.x = if (params.x + (params.width / 2) < currentBounds.width() / 2) {
                             0
                         } else {
@@ -371,6 +412,7 @@ class TapLockAccessibilityService : AccessibilityService() {
                             lockScreen()
                         }
                     }
+                    // Accessibility contract: performClick() after handling ACTION_UP manually.
                     view.performClick()
                     true
                 }
@@ -388,6 +430,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         floatingLockButton = button
     }
 
+    /**
+     * Applies current size/opacity (preview values take precedence), clamps the position to the
+     * screen, and refreshes the icon from the custom icon file when present.
+     */
     private fun updateFloatingLockButtonLayout() {
         val button = floatingLockButton ?: return
         val prefs = getPrefs()
@@ -429,6 +475,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Removes the floating button overlay if present. */
     private fun removeFloatingLockButton() {
         floatingLockButton?.let {
             (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(it)
@@ -436,6 +483,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         floatingLockButton = null
     }
 
+    /** Stores the floating button position so it survives service restarts. */
     private fun persistFloatingButtonPosition(x: Int, y: Int) {
         getPrefs().edit {
             putInt(getString(R.string.floating_button_position_x), x)
@@ -443,9 +491,14 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Converts [valueDp] to pixels using the current display density. */
     private fun dpToPx(valueDp: Int): Int =
         (valueDp * resources.displayMetrics.density).toInt()
 
+    /**
+     * Adds or removes the status bar overlay depending on whether the status bar or lock screen
+     * tap zone is enabled, then re-applies its frame.
+     */
     private fun updateStatusBarOverlay() {
         val prefs = getPrefs()
         val statusBarMode = getZoneMode(prefs, R.string.status_bar_mode)
@@ -465,6 +518,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Creates the overlay covering the status bar (or the lock zone while locked). Vertical
+     * swipes are forwarded as shade/keyguard gestures; movement-free taps feed the detector.
+     */
     private fun addStatusBarOverlay() {
         if (statusBarOverlay != null) {
             Log.d(TAG, "addStatusBarOverlay: already exists, skipping")
@@ -511,6 +568,7 @@ class TapLockAccessibilityService : AccessibilityService() {
                                 doubleTapDetector.reset()
                             }
                         }
+                        // Accessibility contract: performClick() after handling ACTION_UP manually.
                         v.performClick()
                     }
                 }
@@ -541,11 +599,13 @@ class TapLockAccessibilityService : AccessibilityService() {
         Log.d(TAG, "addStatusBarOverlay: added, height=${statusBarHeight}px")
     }
 
+    /** Re-evaluates edge and corner overlays together. */
     private fun updateInteractiveZoneOverlays() {
         updateEdgeOverlays()
         updateCornerOverlays()
     }
 
+    /** Adds, updates, or removes each edge overlay based on its mode and the keyguard state. */
     private fun updateEdgeOverlays() {
         val prefs = getPrefs()
         val leftEnabled = getZoneMode(prefs, getEdgeModeKey(EdgeZoneSide.LEFT)) != TapZoneMode.OFF
@@ -569,6 +629,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         updateEdgeOverlayTouchability()
     }
 
+    /** Adds, updates, or removes each corner overlay based on its mode and the keyguard state. */
     private fun updateCornerOverlays() {
         val prefs = getPrefs()
         val canShowCornerZones = shouldShowInteractiveZones()
@@ -584,6 +645,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         updateCornerOverlayTouchability()
     }
 
+    /** Ensures a single corner overlay matches its [enabled] and [canShow] state. */
     private fun updateCornerOverlay(
         position: CornerZonePosition,
         enabled: Boolean,
@@ -597,6 +659,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Creates an invisible overlay along one screen edge. An inward horizontal swipe triggers
+     * BACK, any other movement past slop cancels the gesture, and clean taps feed the detector.
+     */
     private fun addEdgeOverlay(side: EdgeZoneSide) {
         if (getEdgeOverlay(side) != null) {
             return
@@ -640,6 +706,7 @@ class TapLockAccessibilityService : AccessibilityService() {
                         if (!gestureHandled) {
                             handleEdgeTap(side, downTimeMs)
                         }
+                        // Accessibility contract: performClick() after handling ACTION_UP manually.
                         v.performClick()
                     }
 
@@ -671,6 +738,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         Log.d(TAG, "edgeOverlay: added side=$side, frame=$frame")
     }
 
+    /** Creates an invisible overlay in one screen corner; only movement-free taps feed the detector. */
     private fun addCornerOverlay(position: CornerZonePosition) {
         if (getCornerOverlay(position) != null) {
             return
@@ -710,6 +778,7 @@ class TapLockAccessibilityService : AccessibilityService() {
                         if (!gestureHandled) {
                             handleCornerTap(position, downTimeMs)
                         }
+                        // Accessibility contract: performClick() after handling ACTION_UP manually.
                         v.performClick()
                     }
 
@@ -741,6 +810,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         Log.d(TAG, "cornerOverlay: added position=$position, frame=$frame")
     }
 
+    /** Re-applies the edge overlay frame when preferences or screen bounds change. */
     private fun updateEdgeOverlayLayout(side: EdgeZoneSide) {
         val overlay = getEdgeOverlay(side) ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -758,11 +828,13 @@ class TapLockAccessibilityService : AccessibilityService() {
             params.x = frame.x
             params.y = frame.y
             wm.updateViewLayout(overlay, params)
+            // Frame changed: reset so a tap in the old zone can't pair with one in the new zone.
             getEdgeDetector(side).reset()
             Log.d(TAG, "edgeOverlay: updated side=$side, frame=$frame")
         }
     }
 
+    /** Re-applies the corner overlay frame when preferences or screen bounds change. */
     private fun updateCornerOverlayLayout(position: CornerZonePosition) {
         val overlay = getCornerOverlay(position) ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -780,17 +852,20 @@ class TapLockAccessibilityService : AccessibilityService() {
             params.x = frame.x
             params.y = frame.y
             wm.updateViewLayout(overlay, params)
+            // Frame changed: reset so a tap in the old zone can't pair with one in the new zone.
             getCornerDetector(position).reset()
             Log.d(TAG, "cornerOverlay: updated position=$position, frame=$frame")
         }
     }
 
+    /** Recomputes touchability for both edge overlays. */
     private fun updateEdgeOverlayTouchability() {
         val touchDisabled = isCurrentAppExcluded() || isTapLockForeground()
         updateEdgeOverlayTouchability(EdgeZoneSide.LEFT, touchDisabled)
         updateEdgeOverlayTouchability(EdgeZoneSide.RIGHT, touchDisabled)
     }
 
+    /** Recomputes touchability for all four corner overlays. */
     private fun updateCornerOverlayTouchability() {
         val touchDisabled = isCurrentAppExcluded() || isTapLockForeground()
         updateCornerOverlayTouchability(CornerZonePosition.TOP_LEFT, touchDisabled)
@@ -799,6 +874,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         updateCornerOverlayTouchability(CornerZonePosition.BOTTOM_RIGHT, touchDisabled)
     }
 
+    /** Toggles FLAG_NOT_TOUCHABLE on one edge overlay so touches pass through when suppressed. */
     private fun updateEdgeOverlayTouchability(side: EdgeZoneSide, touchDisabled: Boolean) {
         val overlay = getEdgeOverlay(side) ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -819,6 +895,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Toggles FLAG_NOT_TOUCHABLE on one corner overlay so touches pass through when suppressed. */
     private fun updateCornerOverlayTouchability(
         position: CornerZonePosition,
         touchDisabled: Boolean
@@ -842,6 +919,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Refreshes the tracked foreground app and recomputes touchability for every overlay. */
     private fun updateOverlayTouchability() {
         refreshForegroundPackage()
         updateStatusBarOverlayTouchability()
@@ -849,6 +927,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         updateCornerOverlayTouchability()
     }
 
+    /**
+     * Enables or disables touch on the status bar overlay based on lock screen state, app
+     * exclusion, status bar visibility, and notification shade expansion.
+     */
     private fun updateStatusBarOverlayTouchability() {
         val overlay = statusBarOverlay ?: return
         val prefs = getPrefs()
@@ -890,6 +972,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Resizes the status bar overlay for the current keyguard state: full lock-zone frame while
+     * locked, status bar (or camera-area) frame while unlocked, and a minimal strip otherwise.
+     */
     private fun updateOverlayForLockScreen() {
         val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
         val locked = km.isKeyguardLocked
@@ -942,6 +1028,7 @@ class TapLockAccessibilityService : AccessibilityService() {
             params.x = newFrame.xPx
             params.y = newFrame.yPx
             wm.updateViewLayout(overlay, params)
+            // Frame changed: reset so a tap in the old zone can't pair with one in the new zone.
             doubleTapDetector.reset()
             Log.d(
                 TAG,
@@ -957,6 +1044,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         updateInteractiveZoneOverlays()
     }
 
+    /** Builds the lock screen tap zone frame from the configured size and vertical offset. */
     private fun getLockScreenOverlayFrame(): LockZoneFrame {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val screenHeight = wm.currentWindowMetrics.bounds.height()
@@ -974,6 +1062,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         )
     }
 
+    /**
+     * Builds the unlocked overlay frame: the full status bar strip, or just the camera cutout
+     * area when the camera-area-only preference is set.
+     */
     private fun getUnlockedStatusBarOverlayFrame(
         statusBarHeight: Int = getStatusBarHeight()
     ): StatusBarOverlayFrame {
@@ -1025,6 +1117,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         )
     }
 
+    /**
+     * Handles a tap on the lock screen zone: taps on interactive elements (notifications,
+     * shortcuts) are forwarded as clicks; only taps on empty space count toward the double tap.
+     */
     private fun handleLockScreenTap(tapTimeMs: Long, x: Float, y: Float) {
         val clickedNode = findClickableNodeAt(x.toInt(), y.toInt())
         if (clickedNode != null) {
@@ -1037,6 +1133,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         handleStatusBarTap(tapTimeMs)
     }
 
+    /** Finds the clickable accessibility node under screen point ([x], [y]), if any. */
     private fun findClickableNodeAt(x: Int, y: Int): AccessibilityNodeInfo? {
         val nodeRect = Rect()
         for (window in windows) {
@@ -1055,6 +1152,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         return null
     }
 
+    /**
+     * Depth-first search for the deepest clickable node containing ([x], [y]); children win over
+     * parents so the most specific interactive element receives the forwarded click.
+     */
     private fun findDeepestClickableNode(
         node: AccessibilityNodeInfo,
         x: Int,
@@ -1080,8 +1181,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         return null
     }
 
+    /** True when a system window is docked at the top of the screen (the status bar is shown). */
     private fun isStatusBarVisible(): Boolean {
         val allWindows = windows
+        // No window info yet: assume visible rather than silently disabling the zone.
         if (allWindows.isEmpty()) return true
         val rect = Rect()
         return allWindows.any { window ->
@@ -1092,6 +1195,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** True when System UI is showing the notification shade or quick settings. */
     private fun isNotificationShadeExpanded(): Boolean {
         return windows.any { window ->
             if (window.type != AccessibilityWindowInfo.TYPE_SYSTEM) return@any false
@@ -1104,12 +1208,14 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Matches window class/title names System UI uses for the shade across OEM variants. */
     private fun isNotificationShadeIdentifier(value: String): Boolean {
         return value.contains("NotificationShade", ignoreCase = true) ||
             value.contains("NotificationPanel", ignoreCase = true) ||
             value.contains("QuickSettings", ignoreCase = true)
     }
 
+    /** Removes the status bar overlay and clears any pending first tap. */
     private fun removeStatusBarOverlay() {
         statusBarOverlay?.let {
             val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -1119,11 +1225,13 @@ class TapLockAccessibilityService : AccessibilityService() {
         doubleTapDetector.reset()
     }
 
+    /** Removes both edge overlays. */
     private fun removeEdgeOverlays() {
         removeEdgeOverlay(EdgeZoneSide.LEFT)
         removeEdgeOverlay(EdgeZoneSide.RIGHT)
     }
 
+    /** Removes all four corner overlays. */
     private fun removeCornerOverlays() {
         removeCornerOverlay(CornerZonePosition.TOP_LEFT)
         removeCornerOverlay(CornerZonePosition.TOP_RIGHT)
@@ -1131,6 +1239,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         removeCornerOverlay(CornerZonePosition.BOTTOM_RIGHT)
     }
 
+    /** Removes one edge overlay and resets its detector. */
     private fun removeEdgeOverlay(side: EdgeZoneSide) {
         val overlay = getEdgeOverlay(side) ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -1139,6 +1248,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         getEdgeDetector(side).reset()
     }
 
+    /** Removes one corner overlay and resets its detector. */
     private fun removeCornerOverlay(position: CornerZonePosition) {
         val overlay = getCornerOverlay(position) ?: return
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -1147,6 +1257,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         getCornerDetector(position).reset()
     }
 
+    /**
+     * Counts a tap on the status bar / lock screen zone toward the configured lock trigger,
+     * unless the current foreground app is excluded.
+     */
     private fun handleStatusBarTap(tapTimeMs: Long) {
         refreshForegroundPackage()
         if (isCurrentAppExcluded()) {
@@ -1161,6 +1275,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         maybeTriggerLock(doubleTapDetector, tapTimeMs, source, mode)
     }
 
+    /** Counts a tap on an edge zone unless the app is excluded or TapLock itself is foreground. */
     private fun handleEdgeTap(side: EdgeZoneSide, tapTimeMs: Long) {
         refreshForegroundPackage()
         val detector = getEdgeDetector(side)
@@ -1174,6 +1289,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         maybeTriggerLock(detector, tapTimeMs, "edge:$side", mode)
     }
 
+    /** Counts a tap on a corner zone unless the app is excluded or TapLock itself is foreground. */
     private fun handleCornerTap(position: CornerZonePosition, tapTimeMs: Long) {
         refreshForegroundPackage()
         val detector = getCornerDetector(position)
@@ -1190,11 +1306,13 @@ class TapLockAccessibilityService : AccessibilityService() {
         maybeTriggerLock(detector, tapTimeMs, "corner:$position", mode)
     }
 
+    /** Maps an edge [side] to its mode preference key. */
     private fun getEdgeModeKey(side: EdgeZoneSide): Int = when (side) {
         EdgeZoneSide.LEFT -> R.string.left_edge_mode
         EdgeZoneSide.RIGHT -> R.string.right_edge_mode
     }
 
+    /** Maps a corner [position] to its mode preference key. */
     private fun getCornerModeKey(position: CornerZonePosition): Int = when (position) {
         CornerZonePosition.TOP_LEFT -> R.string.top_left_corner_mode
         CornerZonePosition.TOP_RIGHT -> R.string.top_right_corner_mode
@@ -1202,6 +1320,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         CornerZonePosition.BOTTOM_RIGHT -> R.string.bottom_right_corner_mode
     }
 
+    /**
+     * Applies the zone [mode] to a tap: locks immediately for single-tap zones, otherwise feeds
+     * [detector] and locks when it reports a completed double tap.
+     */
     private fun maybeTriggerLock(
         detector: DoubleTapDetector,
         tapTimeMs: Long,
@@ -1224,11 +1346,13 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Locks with the user's vibration and delay settings applied. */
     private fun performConfiguredLock(prefs: SharedPreferences) {
         val vibrateOnLock = prefs.getBoolean(getString(R.string.vibrate_on_lock), true)
         val lockDelay = prefs.getInt(getString(R.string.lock_delay_ms), 0).toLong()
         if (vibrateOnLock) {
             VibrationHelper.vibrate(this, VibrationHelper.fromPrefs(this))
+            // Extra 100ms lets the vibration play before the screen turns off.
             Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, 100 + lockDelay)
         } else if (lockDelay > 0) {
             Handler(Looper.getMainLooper()).postDelayed({ lockScreen() }, lockDelay)
@@ -1237,6 +1361,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Status bar height from window insets, with a 24dp fallback when insets report zero. */
     private fun getStatusBarHeight(): Int {
         val wm = getSystemService(WINDOW_SERVICE) as WindowManager
         val insets = wm.currentWindowMetrics.windowInsets
@@ -1250,10 +1375,15 @@ class TapLockAccessibilityService : AccessibilityService() {
         return fallback
     }
 
+    /** Base window flags shared by all tap-zone overlays. */
     private fun createOverlayBaseFlags(): Int =
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
 
+    /**
+     * Builds an edge overlay frame from preferences, deriving top/bottom offsets from the legacy
+     * coverage preference when the newer offset keys are unset.
+     */
     private fun createEdgeFrame(side: EdgeZoneSide): EdgeZoneFrame {
         val prefs = getPrefs()
         val widthDp = prefs.getInt(
@@ -1286,6 +1416,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         )
     }
 
+    /** Builds a corner overlay frame from the configured size. */
     private fun createCornerFrame(position: CornerZonePosition): EdgeZoneFrame {
         val prefs = getPrefs()
         val sizeDp = prefs.getInt(
@@ -1302,18 +1433,22 @@ class TapLockAccessibilityService : AccessibilityService() {
         )
     }
 
+    /** Edge/corner zones are hidden while the device is locked to avoid blocking keyguard UI. */
     private fun shouldShowInteractiveZones(): Boolean {
         return !isDeviceLocked()
     }
 
+    /** True while the keyguard is showing. */
     private fun isDeviceLocked(): Boolean =
         (getSystemService(KEYGUARD_SERVICE) as KeyguardManager).isKeyguardLocked
 
+    /** Returns the overlay view for the given edge [side], if attached. */
     private fun getEdgeOverlay(side: EdgeZoneSide): View? = when (side) {
         EdgeZoneSide.LEFT -> leftEdgeOverlay
         EdgeZoneSide.RIGHT -> rightEdgeOverlay
     }
 
+    /** Returns the overlay view for the given corner [position], if attached. */
     private fun getCornerOverlay(position: CornerZonePosition): View? = when (position) {
         CornerZonePosition.TOP_LEFT -> topLeftCornerOverlay
         CornerZonePosition.TOP_RIGHT -> topRightCornerOverlay
@@ -1321,6 +1456,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         CornerZonePosition.BOTTOM_RIGHT -> bottomRightCornerOverlay
     }
 
+    /** Stores the overlay view for the given edge [side]. */
     private fun setEdgeOverlay(side: EdgeZoneSide, overlay: View?) {
         when (side) {
             EdgeZoneSide.LEFT -> leftEdgeOverlay = overlay
@@ -1328,6 +1464,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Stores the overlay view for the given corner [position]. */
     private fun setCornerOverlay(position: CornerZonePosition, overlay: View?) {
         when (position) {
             CornerZonePosition.TOP_LEFT -> topLeftCornerOverlay = overlay
@@ -1337,11 +1474,13 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Returns the per-side detector; each zone counts double taps independently. */
     private fun getEdgeDetector(side: EdgeZoneSide): DoubleTapDetector = when (side) {
         EdgeZoneSide.LEFT -> leftEdgeDoubleTapDetector
         EdgeZoneSide.RIGHT -> rightEdgeDoubleTapDetector
     }
 
+    /** Returns the per-corner detector; each zone counts double taps independently. */
     private fun getCornerDetector(position: CornerZonePosition): DoubleTapDetector = when (position) {
         CornerZonePosition.TOP_LEFT -> topLeftCornerDoubleTapDetector
         CornerZonePosition.TOP_RIGHT -> topRightCornerDoubleTapDetector
@@ -1349,6 +1488,7 @@ class TapLockAccessibilityService : AccessibilityService() {
         CornerZonePosition.BOTTOM_RIGHT -> bottomRightCornerDoubleTapDetector
     }
 
+    /** True for an inward horizontal swipe past [touchSlop], which is forwarded as BACK. */
     private fun shouldTriggerBackSwipe(
         side: EdgeZoneSide,
         dx: Float,
@@ -1364,6 +1504,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * True when TapLock's own UI is in the foreground, so zone taps don't fire while the user is
+     * adjusting settings.
+     */
     private fun isTapLockForeground(): Boolean {
         if (rootInActiveWindow?.packageName?.toString() == packageName) {
             return true
@@ -1379,9 +1523,14 @@ class TapLockAccessibilityService : AccessibilityService() {
             .any { foregroundPackage -> foregroundPackage == packageName }
     }
 
+    /** True when the tracked foreground app is excluded; exclusion never applies on the lock screen. */
     private fun isCurrentAppExcluded(): Boolean =
         !isOnLockScreen && TapLockAppRules.isPackageExcluded(this, currentForegroundPackage)
 
+    /**
+     * Updates the tracked foreground package (optionally seeded by [eventPackage]) and returns
+     * true when it changed.
+     */
     private fun refreshForegroundPackage(eventPackage: String? = null): Boolean {
         val previousPackage = currentForegroundPackage
         val resolvedPackage = resolveForegroundPackage(eventPackage)
@@ -1394,6 +1543,10 @@ class TapLockAccessibilityService : AccessibilityService() {
         return currentForegroundPackage != previousPackage
     }
 
+    /**
+     * Best-effort foreground package lookup: active window root, then focused app windows, then
+     * the event's package, falling back to the last known value.
+     */
     private fun resolveForegroundPackage(eventPackage: String? = null): String? {
         val activeRootPackage = TapLockAppRules.sanitizeTrackedPackage(
             this,

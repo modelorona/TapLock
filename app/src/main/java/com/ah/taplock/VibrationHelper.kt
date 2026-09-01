@@ -7,14 +7,17 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 
+/** User-selectable haptic strength: a one-shot vibration of [durationMs] at [amplitude] (1–255). */
 enum class VibrationPattern(val durationMs: Long, val amplitude: Int) {
     LIGHT(30, 40),
     MEDIUM(50, 80),
     STRONG(80, 255)
 }
 
+/** API-level-aware haptic feedback for lock actions (Android 13+ vs older attribute APIs). */
 object VibrationHelper {
 
+    /** Reads the stored pattern preference, falling back to [VibrationPattern.MEDIUM]. */
     fun fromPrefs(context: Context): VibrationPattern {
         val prefs = context.getSharedPreferences(
             context.getString(R.string.shared_pref_name), Context.MODE_PRIVATE
@@ -27,6 +30,11 @@ object VibrationHelper {
         }
     }
 
+    /**
+     * Plays [pattern] with ALARM usage so it fires even in do-not-disturb / silent ring modes.
+     * Android 13+ uses VibrationAttributes; older releases need the deprecated AudioAttributes
+     * overload — both branches must be kept in sync.
+     */
     fun vibrate(context: Context, pattern: VibrationPattern) {
         val vibrator = context.getSystemService(Vibrator::class.java)
         val effect = VibrationEffect.createOneShot(pattern.durationMs, pattern.amplitude)

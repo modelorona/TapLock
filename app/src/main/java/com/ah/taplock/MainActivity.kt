@@ -103,11 +103,17 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "TapLock"
 
+/**
+ * Single-activity entry point. Hosts the Compose settings UI, or acts as an invisible trampoline
+ * that locks the screen and finishes immediately when launched with the LOCK_NOW action.
+ */
 class MainActivity : ComponentActivity() {
 
+    /** Handles the LOCK_NOW trampoline before any UI; otherwise renders [TapLockScreen]. */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (intent?.action == "com.ah.taplock.LOCK_NOW") {
+            // Prefer the live accessibility service; fall back to root when it isn't bound.
             val service = TapLockAccessibilityService.instance
             if (service != null) {
                 service.lockScreen()
@@ -125,6 +131,11 @@ class MainActivity : ComponentActivity() {
     }
 
 }
+/**
+ * Full settings screen: permission status, quick-access setup (widget, tile, floating button),
+ * tap-zone configuration, behavior tweaks, and app exclusions. [accessibilityEnabledOverride]
+ * forces the accessibility state in tests instead of querying the system.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
@@ -230,6 +241,8 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         mutableFloatStateOf(TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP.toFloat())
     }
     var floatingButtonEnabled by remember { mutableStateOf(false) }
+    // State objects are kept next to their delegates so slider callbacks can read the latest
+    // value via floatValue instead of a stale lambda capture.
     val floatingButtonSizeDpState = remember {
         mutableFloatStateOf(TapLockFloatingButtonConfig.DEFAULT_SIZE_DP.toFloat())
     }
@@ -274,6 +287,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         editableTopRightCornerZoneEnabled ||
         editableBottomLeftCornerZoneEnabled ||
         editableBottomRightCornerZoneEnabled
+    // Live overlays render only while a relevant slider is actively dragged.
     val showEdgeZoneLiveOverlay = (
         anyEdgeZoneEnabled || anyCornerZoneEnabled
         ) && (
@@ -285,6 +299,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     val showLockZoneLiveOverlay = lockScreenMode != TapZoneMode.OFF &&
         (isLockZoneSliderDragged || isLockZoneTopOffsetSliderDragged || showLockZonePreviewOverlay)
 
+    // The preview button flashes the real overlay briefly, then hides it again.
     LaunchedEffect(showLockZonePreviewOverlay) {
         if (showLockZonePreviewOverlay) {
             delay(1500.milliseconds)
@@ -292,16 +307,22 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    /** Persists a tap-zone mode selection under [baseKey]. */
     fun saveSelectedZoneMode(baseKey: String, value: TapZoneMode) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
             .edit { putString(baseKey, value.name) }
     }
 
+    /** Persists an integer zone setting under [baseKey]. */
     fun saveSelectedZoneInt(baseKey: String, value: Int) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
             .edit { putInt(baseKey, value) }
     }
 
+    /**
+     * Clamps and applies lock-zone values to state. The top offset ceiling depends on
+     * [zonePercent], so both values are re-clamped together to keep the zone on screen.
+     */
     fun syncLockZoneState(
         zonePercent: Int = lockZonePercent.toInt(),
         topOffsetPercent: Int = lockZoneTopOffsetPercent.toInt()
@@ -315,6 +336,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         lockZoneTopOffsetPercent = clampedTopOffsetPercent.toFloat()
     }
 
+    /** Re-clamps the current lock-zone state and writes both values to preferences. */
     fun persistLockZoneSettings() {
         syncLockZoneState()
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE).edit {
@@ -323,6 +345,11 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    /**
+     * Switches the lock method. Choosing root first verifies su access asynchronously and falls
+     * back to accessibility (with a toast) when denied. [fromPrompt] marks the one-time root
+     * prompt as answered so it never reappears.
+     */
     fun applyLockMethod(useRoot: Boolean, fromPrompt: Boolean) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
         if (!useRoot) {
@@ -352,6 +379,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    /** Updates and persists the tap mode for the given edge [side]. */
     fun setEditableEdgeMode(side: EdgeZoneSide, mode: TapZoneMode) {
         when (side) {
             EdgeZoneSide.LEFT -> leftEdgeMode = mode
@@ -360,6 +388,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         saveSelectedZoneMode(if (side == EdgeZoneSide.LEFT) leftEdgeModeKey else rightEdgeModeKey, mode)
     }
 
+    /** Updates and persists the tap mode for the given corner [position]. */
     fun setEditableCornerMode(position: CornerZonePosition, mode: TapZoneMode) {
         val key = when (position) {
             CornerZonePosition.TOP_LEFT -> {
@@ -382,37 +411,48 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         saveSelectedZoneMode(key, mode)
     }
 
+    /** Updates the edge-zone width state during slider drag; persisted on release. */
     fun setEditableEdgeWidth(value: Float) {
         edgeZoneWidthDp = value
     }
 
+    /** Updates the edge-zone top offset state during slider drag; persisted on release. */
     fun setEditableTopOffset(value: Float) {
         edgeZoneTopOffsetPercent = value
     }
 
+    /** Updates the edge-zone bottom offset state during slider drag; persisted on release. */
     fun setEditableBottomOffset(value: Float) {
         edgeZoneBottomOffsetPercent = value
     }
 
+    /** Updates the corner-zone size state during slider drag; persisted on release. */
     fun setEditableCornerSize(value: Float) {
         cornerZoneSizeDp = value
     }
 
+    /** Re-reads how many home-screen widgets are currently placed. */
     fun refreshWidgetCount() {
         widgetCount = TapLockWidgetProvider.getWidgetCount(context)
     }
 
+    /** Redraws all placed widgets and refreshes the count shown in the UI. */
     fun refreshWidgets() {
         TapLockWidgetProvider.refreshAll(context)
         refreshWidgetCount()
     }
 
+    /** Asks the running accessibility service to rebuild the floating button, if shown. */
     fun refreshFloatingLockButtonIfRunning() {
         if (floatingButtonEnabled) {
             TapLockAccessibilityService.instance?.refreshFloatingLockButton()
         }
     }
 
+    /**
+     * Live-previews floating button size/opacity on the service overlay while a slider moves,
+     * without persisting anything.
+     */
     fun previewFloatingLockButtonIfRunning(
         sizeDp: Float = floatingButtonSizeDp,
         opacityPercent: Float = floatingButtonOpacityPercent
@@ -427,6 +467,10 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    /**
+     * Shows the system prompt to add the Quick Settings tile (Android 13+). Persists the added
+     * flag when the tile is added or already present; older versions get an unsupported toast.
+     */
     fun requestQuickSettingsTilePrompt() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             TapLockFeedback.showQuickSettingsAddUnsupported(context)
@@ -497,6 +541,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             edgeZoneWidthDpKey,
             TapLockEdgeZones.DEFAULT_WIDTH_DP
         ).toFloat()
+        // Older versions stored one "coverage" value; derive top/bottom offset defaults from it.
         val legacyEdgeCoveragePercent = prefs.getInt(
             edgeZoneCoveragePercentKey,
             TapLockEdgeZones.DEFAULT_COVERAGE_PERCENT
@@ -544,6 +589,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         isLoadingApps = false
 
         lockMethodRoot = prefs.getString(lockMethodKey, null) == RootLock.LOCK_METHOD_ROOT
+        // su detection touches the filesystem, so keep it off the main thread.
         val rooted = withContext(Dispatchers.IO) { RootLock.isDeviceRooted() }
         isDeviceRooted = rooted
         showRootModePrompt = rooted && !prefs.getBoolean(rootModePromptShownKey, false)
@@ -556,6 +602,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                     try {
                         context.contentResolver.openInputStream(uri)?.use { inputStream ->
                             val bitmap = BitmapFactory.decodeStream(inputStream)
+                            // Cap at 512px so the stored icon stays small enough for RemoteViews.
                             val scaledBitmap = if (bitmap.width > 512 || bitmap.height > 512) {
                                 bitmap.scale(512, 512)
                             } else {
@@ -581,6 +628,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    // Adaptive icons expose no bitmap directly, so render the launcher drawable onto a canvas.
     val defaultAppIconBitmap = remember {
         val drawable = context.packageManager.getApplicationIcon(context.packageName)
         val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 128
@@ -644,6 +692,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                 }
             } else null
 
+        // Tiramisu+ has a dedicated listener; older versions must watch the Settings.Secure URI.
         val accessibilityObserver =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val listener =
@@ -667,6 +716,8 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             }
         refreshAccessibilityState()
 
+        // Widgets, the tile, and system Settings can change prefs while the app is backgrounded,
+        // so re-read everything on every resume.
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityEnabled = accessibilityEnabledOverride ?: isAccessibilityEnabled(context)
@@ -1956,6 +2007,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             )
         }
 
+        // Defer the root prompt until onboarding finishes so the dialogs don't stack.
         if (showRootModePrompt && !showOnboarding) {
             AlertDialog(
                 onDismissRequest = {},

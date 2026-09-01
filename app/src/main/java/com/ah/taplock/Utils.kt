@@ -40,6 +40,7 @@ fun registerAdvancedProtectionCallback(
     return callback
 }
 
+/** Removes a [callback] previously returned by [registerAdvancedProtectionCallback]. */
 @RequiresApi(36)
 fun unregisterAdvancedProtectionCallback(
     context: Context,
@@ -49,6 +50,10 @@ fun unregisterAdvancedProtectionCallback(
     manager.unregisterAdvancedProtectionCallback(callback)
 }
 
+/**
+ * True when the TapLock accessibility service is currently enabled in system settings. Queries
+ * the live service list rather than Settings.Secure, so it reflects the actual bound state.
+ */
 fun isAccessibilityEnabled(context: Context): Boolean {
     val accessibilityManager =
         context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
