@@ -658,6 +658,18 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    val readmeRootUrl = stringResource(R.string.readme_root_url)
+    val rootNoteString = buildAnnotatedString {
+        append(stringResource(R.string.home_screen_root_note))
+        append(" ")
+        withLink(LinkAnnotation.Url(
+            url = readmeRootUrl,
+            styles = TextLinkStyles(style = SpanStyle(textDecoration = TextDecoration.Underline))
+        )) {
+            append(readmeRootUrl)
+        }
+    }
+
     val excludedAppLabels = excludedPackages
         .map { packageName ->
             availableApps.firstOrNull { it.packageName == packageName }?.label
@@ -734,6 +746,13 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
                 lockMethodRoot = prefs.getString(lockMethodKey, null) == RootLock.LOCK_METHOD_ROOT
+                // Root managers can expose su after first launch, so re-detect on every resume.
+                coroutineScope.launch {
+                    val rooted = withContext(Dispatchers.IO) { RootLock.isDeviceRooted() }
+                    isDeviceRooted = rooted
+                    showRootModePrompt =
+                        rooted && !prefs.getBoolean(rootModePromptShownKey, false)
+                }
                 // Re-evaluate on every resume so the prompt fires right after the user comes
                 // back from enabling the accessibility service.
                 showBatteryPrompt = isAccessibilityEnabled && isBatteryOptimized &&
@@ -846,7 +865,8 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                             .edit { putBoolean(hasSeenInfoKey, true) }
                     }
                 },
-                disclaimerString = disclaimerString
+                disclaimerString = disclaimerString,
+                rootNoteString = rootNoteString
             )
 
             if (isAdvancedProtectionEnabled) {
@@ -2002,7 +2022,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                     TextButton(
                         onClick = {
                             showDialog = false
-                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            context.startActivity(accessibilitySettingsIntent(context))
                         }
                     ) {
                         Text(stringResource(R.string.agree))
@@ -2090,6 +2110,9 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
 
         if (showOnboarding) {
+            val onboardingWidgetManager = remember { AppWidgetManager.getInstance(context) }
+            val onboardingWidgetPinSupported =
+                remember { onboardingWidgetManager.isRequestPinAppWidgetSupported }
             val onboardingTitle = when (onboardingStep) {
                 0 -> stringResource(R.string.onboarding_welcome_title)
                 1 -> stringResource(R.string.onboarding_accessibility_title)
@@ -2099,7 +2122,11 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             val onboardingBody = when (onboardingStep) {
                 0 -> stringResource(R.string.onboarding_welcome_body)
                 1 -> stringResource(R.string.onboarding_accessibility_body)
-                2 -> stringResource(R.string.onboarding_widget_body)
+                2 -> if (onboardingWidgetPinSupported) {
+                    stringResource(R.string.onboarding_widget_body_pin)
+                } else {
+                    stringResource(R.string.onboarding_widget_body)
+                }
                 else -> stringResource(R.string.onboarding_done_body)
             }
 
@@ -2111,7 +2138,17 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                     TextButton(
                         onClick = {
                             when (onboardingStep) {
-                                1 -> context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                1 -> context.startActivity(accessibilitySettingsIntent(context))
+                                2 -> if (onboardingWidgetPinSupported) {
+                                    val requested = onboardingWidgetManager.requestPinAppWidget(
+                                        ComponentName(context, TapLockWidgetProvider::class.java),
+                                        null,
+                                        null
+                                    )
+                                    if (!requested) {
+                                        TapLockFeedback.showWidgetPinUnsupported(context)
+                                    }
+                                }
                                 3 -> {
                                     showOnboarding = false
                                     context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -2124,6 +2161,11 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                         Text(
                             when (onboardingStep) {
                                 1 -> stringResource(R.string.onboarding_open_settings)
+                                2 -> if (onboardingWidgetPinSupported) {
+                                    stringResource(R.string.onboarding_add_widget)
+                                } else {
+                                    stringResource(R.string.onboarding_next)
+                                }
                                 3 -> stringResource(R.string.onboarding_done)
                                 else -> stringResource(R.string.onboarding_next)
                             }

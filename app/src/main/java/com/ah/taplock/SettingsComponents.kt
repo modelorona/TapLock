@@ -74,14 +74,16 @@ fun SettingsSectionCard(
 }
 
 /**
- * Collapsible "about" card with app description, instructions, and [disclaimerString].
+ * Collapsible "about" card with app description, instructions, [disclaimerString], and
+ * [rootNoteString] pointing at the README's root lock mode docs.
  * [expanded] state is hoisted so the screen can persist it across recompositions.
  */
 @Composable
 fun InfoSection(
     expanded: Boolean,
     onToggle: () -> Unit,
-    disclaimerString: AnnotatedString
+    disclaimerString: AnnotatedString,
+    rootNoteString: AnnotatedString
 ) {
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
@@ -125,6 +127,10 @@ fun InfoSection(
                     )
                     Text(
                         stringResource(R.string.home_screen_instructions),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        rootNoteString,
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(

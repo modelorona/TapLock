@@ -24,6 +24,10 @@
         datos. Para mayor transparencia, el código fuente está disponible en el enlace siguiente:</string>
     <string name="home_screen_instructions">Para añadir el widget, ve a la pantalla de inicio,
         mantén pulsado un espacio vacío y busca el widget de TapLock.</string>
+    <string name="home_screen_root_note">En dispositivos rooteados se ofrece un modo de bloqueo
+        por root opcional. El acceso root solo es visible para TapLock al iniciarse su proceso,
+        así que si la opción no aparece, fuerza el cierre de la app y vuelve a abrirla. Consulta la
+        sección \"Root lock mode\" del README para más detalles:</string>
     <string name="required_permissions">Permisos requeridos</string>
     <string name="accessibility_service">Servicio de accesibilidad</string>
     <string name="quick_access_label">Acceso rápido</string>
@@ -117,6 +121,9 @@
     <string name="onboarding_widget_title">Añadir el widget</string>
     <string name="onboarding_widget_body">Ve a la pantalla de inicio, mantén pulsado un espacio
         vacío y añade el widget de TapLock. Tócalo dos veces para bloquear.</string>
+    <string name="onboarding_widget_body_pin">Toca Añadir widget para colocar el widget de TapLock
+        en tu pantalla de inicio. Tócalo dos veces para bloquear.</string>
+    <string name="onboarding_add_widget">Añadir widget</string>
     <string name="onboarding_done_title">Todo listo</string>
     <string name="onboarding_done_body">TapLock está listo para usarse. Puedes personalizar los
         ajustes en cualquier momento desde esta pantalla.</string>

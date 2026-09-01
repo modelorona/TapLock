@@ -85,6 +85,18 @@ If TapLock detects a rooted device, it offers a choice of lock method:
 
 When you select root mode, TapLock requests superuser access once from your root manager (e.g. Magisk). If root access is denied or the shell fails, TapLock automatically falls back to the accessibility lock. With root mode enabled, the widget and Quick Settings tile can lock the screen even without the accessibility service, though the tap-based lock triggers (status bar, lock screen, floating button) still require it.
 
+##### Root option not showing up?
+
+TapLock detects root by looking for the `su` binary. Managers like Magisk mount `su` into an app's namespace **only when the app's process starts** — so if TapLock was already running (even in the background) before root became visible to it, the root option cannot appear until the process is restarted. TapLock re-checks on every resume, but the namespace limitation means a restart is usually what actually fixes it.
+
+If you're rooted but don't see the lock method choice:
+
+1. **Force-close TapLock and reopen it**: go to system Settings → Apps → TapLock → Force stop (or long-press the app icon → App info → Force stop), then open the app again. A device reboot also works.
+2. **Check your root manager's deny/hide list**: make sure TapLock is _not_ in Magisk's DenyList (or your manager's equivalent root-hiding feature), otherwise `su` stays invisible to it permanently.
+3. **Grant superuser access before first launch** (if your manager supports it): managers such as KernelSU or APatch let you pre-grant root to an app from their own UI. Doing this before opening TapLock for the first time ensures root is detected immediately. Magisk only lists apps after their first `su` request, so with Magisk just use the force-close approach and approve the prompt when TapLock asks.
+
+When the superuser prompt appears, choose "Grant" (and "remember"/"forever" if offered) so subsequent locks don't re-prompt.
+
 ## Building from Source
 
 1. Clone the repository:

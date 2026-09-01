@@ -91,7 +91,7 @@ class TapLockTileService : TileService() {
                 startService(accessibilityIntent)
             } else {
                 TapLockFeedback.showAccessibilityRequired(this)
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                val intent = accessibilitySettingsIntent(this).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
                 if (android.os.Build.VERSION.SDK_INT >= 34) {

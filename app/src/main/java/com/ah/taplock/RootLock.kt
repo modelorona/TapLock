@@ -28,7 +28,11 @@ object RootLock {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    /** Cheap heuristic check for a rooted device: looks for a `su` binary on disk and in PATH. */
+    /**
+     * Cheap heuristic check for a rooted device: looks for a `su` binary on disk and in PATH.
+     * Note: Magisk-style managers mount `su` into an app's namespace only at process start, so a
+     * process launched before root was available won't see it until it is restarted (see README).
+     */
     fun isDeviceRooted(): Boolean {
         val commonPaths = listOf(
             "/system/bin/su",
@@ -44,9 +48,19 @@ object RootLock {
         )
         if (commonPaths.any { runCatching { File(it).exists() }.getOrDefault(false) }) return true
         val pathDirs = System.getenv("PATH")?.split(':').orEmpty()
-        return pathDirs.any { dir ->
-            dir.isNotEmpty() && runCatching { File(dir, "su").exists() }.getOrDefault(false)
-        }
+        if (pathDirs.any { dir ->
+                dir.isNotEmpty() && runCatching { File(dir, "su").exists() }.getOrDefault(false)
+            }
+        ) return true
+        // Some root setups hide the binary from direct path probes; a shell lookup can still
+        // resolve it without triggering a superuser prompt.
+        return runCatching {
+            val process = ProcessBuilder("which", "su").start()
+            val finished = process.waitFor(2, TimeUnit.SECONDS)
+            if (!finished) process.destroyForcibly()
+            finished && process.exitValue() == 0 &&
+                process.inputStream.bufferedReader().readText().isNotBlank()
+        }.getOrDefault(false)
     }
 
     /** True when the user selected root as the lock method. */

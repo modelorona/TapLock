@@ -28,7 +28,13 @@
         access your data. For transparency, the source code is available via the link below:</string>
     <string name="home_screen_instructions">To add the widget, please go to your home screen,
         long-press on empty space, and find the TapLock widget.</string>
+    <string name="home_screen_root_note">On rooted devices, an optional root lock mode is offered.
+        Root access is only visible to TapLock when its process starts, so if the option doesn\'t
+        appear, force-close and reopen the app. See the \"Root lock mode\" section in the README
+        for details:</string>
     <string name="github_url" translatable="false">https://github.com/modelorona/TapLock</string>
+    <string name="readme_root_url" translatable="false">
+        https://github.com/modelorona/TapLock#root-lock-mode-optional-rooted-devices-only</string>
     <string name="required_permissions">Required Permissions</string>
     <string name="accessibility_service">Accessibility Service</string>
     <string name="quick_access_label">Quick Access</string>
@@ -151,6 +157,9 @@
     <string name="onboarding_widget_title">Add the Widget</string>
     <string name="onboarding_widget_body">Go to your home screen, long-press on empty space, and add
         the TapLock widget. Double-tap it to lock!</string>
+    <string name="onboarding_widget_body_pin">Tap Add Widget to place the TapLock widget on your
+        home screen. Double-tap it to lock!</string>
+    <string name="onboarding_add_widget">Add Widget</string>
     <string name="onboarding_done_title">You\'re All Set!</string>
     <string name="onboarding_done_body">TapLock is ready to use. You can customise settings any time
         from this screen.</string>

@@ -3,7 +3,10 @@ package com.ah.taplock
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.Build
+import android.os.Bundle
+import android.provider.Settings
 import android.security.advancedprotection.AdvancedProtectionManager
 import android.view.accessibility.AccessibilityManager
 import androidx.annotation.RequiresApi
@@ -65,4 +68,25 @@ fun isAccessibilityEnabled(context: Context): Boolean {
             val resolveInfo = serviceInfo.resolveInfo.serviceInfo
             ComponentName(resolveInfo.packageName, resolveInfo.name) == serviceComponent
         }
+}
+
+// Undocumented-but-stable Settings extras (used by AOSP Settings since Android 9) that make the
+// accessibility list scroll to and flash-highlight a specific entry.
+private const val EXTRA_FRAGMENT_ARG_KEY = ":settings:fragment_args_key"
+private const val EXTRA_SHOW_FRAGMENT_ARGUMENTS = ":settings:show_fragment_args"
+
+/**
+ * Intent for the system accessibility settings that highlights (blinks) TapLock's entry so the
+ * user can find it immediately. Launchers without AOSP-style Settings simply ignore the extras.
+ */
+fun accessibilitySettingsIntent(context: Context): Intent {
+    val serviceName =
+        ComponentName(context, TapLockAccessibilityService::class.java).flattenToString()
+    return Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+        putExtra(EXTRA_FRAGMENT_ARG_KEY, serviceName)
+        putExtra(
+            EXTRA_SHOW_FRAGMENT_ARGUMENTS,
+            Bundle().apply { putString(EXTRA_FRAGMENT_ARG_KEY, serviceName) }
+        )
+    }
 }
