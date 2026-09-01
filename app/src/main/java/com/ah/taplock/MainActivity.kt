@@ -108,7 +108,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (intent?.action == "com.ah.taplock.LOCK_NOW") {
-            TapLockAccessibilityService.instance?.lockScreen()
+            val service = TapLockAccessibilityService.instance
+            if (service != null) {
+                service.lockScreen()
+            } else if (RootLock.isRootLockEnabled(this)) {
+                RootLock.performRootLock(this)
+            }
             finish()
             return
         }
@@ -151,6 +156,9 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
     val hasSeenInfoKey = stringResource(R.string.has_seen_info)
     val hasCompletedOnboardingKey = stringResource(R.string.has_completed_onboarding)
+    val lockMethodKey = stringResource(R.string.lock_method)
+    val rootModePromptShownKey = stringResource(R.string.root_mode_prompt_shown)
+    val rootAccessDeniedMsg = stringResource(R.string.root_access_denied)
     val lockDelayMsKey = stringResource(R.string.lock_delay_ms)
     val lockCountKey = stringResource(R.string.lock_count)
     val lockZonePercentKey = stringResource(R.string.lock_zone_percent)
@@ -175,6 +183,11 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         mutableStateOf(!pm.isIgnoringBatteryOptimizations(context.packageName))
     }
+
+    var isDeviceRooted by remember { mutableStateOf(false) }
+    var lockMethodRoot by remember { mutableStateOf(false) }
+    var showRootModePrompt by remember { mutableStateOf(false) }
+    var isVerifyingRoot by remember { mutableStateOf(false) }
 
     var timeoutValue by remember { mutableFloatStateOf(300f) }
     var showIcon by remember { mutableStateOf(false) }
@@ -307,6 +320,35 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE).edit {
             putInt(lockZonePercentKey, lockZonePercent.toInt())
             putInt(lockZoneTopOffsetPercentKey, lockZoneTopOffsetPercent.toInt())
+        }
+    }
+
+    fun applyLockMethod(useRoot: Boolean, fromPrompt: Boolean) {
+        val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+        if (!useRoot) {
+            lockMethodRoot = false
+            prefs.edit {
+                putString(lockMethodKey, RootLock.LOCK_METHOD_ACCESSIBILITY)
+                if (fromPrompt) putBoolean(rootModePromptShownKey, true)
+            }
+            if (fromPrompt) showRootModePrompt = false
+            return
+        }
+        isVerifyingRoot = true
+        RootLock.verifyRootAccess { granted ->
+            isVerifyingRoot = false
+            lockMethodRoot = granted
+            prefs.edit {
+                putString(
+                    lockMethodKey,
+                    if (granted) RootLock.LOCK_METHOD_ROOT else RootLock.LOCK_METHOD_ACCESSIBILITY
+                )
+                if (fromPrompt) putBoolean(rootModePromptShownKey, true)
+            }
+            if (fromPrompt) showRootModePrompt = false
+            if (!granted) {
+                Toast.makeText(context, rootAccessDeniedMsg, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -500,6 +542,11 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             TapLockAppRules.loadLaunchableApps(context)
         }
         isLoadingApps = false
+
+        lockMethodRoot = prefs.getString(lockMethodKey, null) == RootLock.LOCK_METHOD_ROOT
+        val rooted = withContext(Dispatchers.IO) { RootLock.isDeviceRooted() }
+        isDeviceRooted = rooted
+        showRootModePrompt = rooted && !prefs.getBoolean(rootModePromptShownKey, false)
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -628,6 +675,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
+                lockMethodRoot = prefs.getString(lockMethodKey, null) == RootLock.LOCK_METHOD_ROOT
                 showIcon = prefs.getBoolean(showWidgetIconKey, false)
                 widgetRippleEnabled = prefs.getBoolean(widgetRippleEnabledKey, true)
                 widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
@@ -887,6 +935,56 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                                 else stringResource(R.string.battery_action_manage)
                             )
                         }
+                    }
+                }
+            }
+
+            if (isDeviceRooted) {
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.lock_method_label),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            stringResource(R.string.lock_method_description),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = !lockMethodRoot,
+                                onClick = { applyLockMethod(useRoot = false, fromPrompt = false) },
+                                enabled = !isVerifyingRoot,
+                                label = { Text(stringResource(R.string.lock_method_accessibility)) },
+                                modifier = Modifier.testTag("chip_lock_method_accessibility")
+                            )
+                            FilterChip(
+                                selected = lockMethodRoot,
+                                onClick = { applyLockMethod(useRoot = true, fromPrompt = false) },
+                                enabled = !isVerifyingRoot,
+                                label = { Text(stringResource(R.string.lock_method_root)) },
+                                modifier = Modifier.testTag("chip_lock_method_root")
+                            )
+                        }
+                        if (isVerifyingRoot) {
+                            Text(
+                                stringResource(R.string.root_mode_checking),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.lock_method_root_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }
@@ -1853,6 +1951,35 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                         onClick = { showDialog = false }
                     ) {
                         Text(stringResource(R.string.not_now))
+                    }
+                }
+            )
+        }
+
+        if (showRootModePrompt && !showOnboarding) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(stringResource(R.string.root_mode_prompt_title)) },
+                text = {
+                    Text(
+                        if (isVerifyingRoot) stringResource(R.string.root_mode_checking)
+                        else stringResource(R.string.root_mode_prompt_body)
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { applyLockMethod(useRoot = true, fromPrompt = true) },
+                        enabled = !isVerifyingRoot
+                    ) {
+                        Text(stringResource(R.string.root_mode_use_root))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { applyLockMethod(useRoot = false, fromPrompt = true) },
+                        enabled = !isVerifyingRoot
+                    ) {
+                        Text(stringResource(R.string.root_mode_use_accessibility))
                     }
                 }
             )

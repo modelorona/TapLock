@@ -55,6 +55,18 @@ class TapLockTileService : TileService() {
             } else {
                 service.lockScreen()
             }
+        } else if (RootLock.isRootLockEnabled(this)) {
+            val lockViaRoot = Runnable {
+                RootLock.performRootLock(this) { success ->
+                    if (!success) TapLockFeedback.showRootLockFailed(this)
+                }
+            }
+            val totalDelay = (if (vibrateOnLock) 100L else 0L) + lockDelay
+            if (totalDelay > 0) {
+                Handler(Looper.getMainLooper()).postDelayed(lockViaRoot, totalDelay)
+            } else {
+                lockViaRoot.run()
+            }
         } else {
             // Fallback checking if enabled
             if (isAccessibilityEnabled(this)) {
@@ -87,7 +99,7 @@ class TapLockTileService : TileService() {
     
     private fun updateTileState() {
         qsTile?.let { tile ->
-            val isEnabled = isAccessibilityEnabled(this)
+            val isEnabled = isAccessibilityEnabled(this) || RootLock.isRootLockEnabled(this)
 
             // STATE_INACTIVE is the correct state for a button that performs an action but doesn't have an on/off state.
             // It will appear white/grey (depending on theme) but not "highlighted/accented" like an active toggle.

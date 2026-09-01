@@ -108,6 +108,16 @@ class TapLockAccessibilityService : AccessibilityService() {
     }
 
     fun lockScreen() {
+        if (RootLock.isRootLockEnabled(this)) {
+            RootLock.performRootLock(this) { success ->
+                if (!success) lockScreenWithAccessibility()
+            }
+        } else {
+            lockScreenWithAccessibility()
+        }
+    }
+
+    private fun lockScreenWithAccessibility() {
         val prefs = getPrefs()
         val count = prefs.getInt(getString(R.string.lock_count), 0)
         prefs.edit { putInt(getString(R.string.lock_count), count + 1) }

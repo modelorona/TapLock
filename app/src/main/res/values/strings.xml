@@ -112,6 +112,28 @@
         privacy.</string>
     <string name="advanced_protection_open_settings">Open Security settings</string>
 
+    <string name="lock_method" translatable="false">lock_method</string>
+    <string name="root_mode_prompt_shown" translatable="false">root_mode_prompt_shown</string>
+    <string name="lock_method_label">Lock Method</string>
+    <string name="lock_method_description">This device appears to be rooted. Choose how TapLock
+        turns off the screen.</string>
+    <string name="lock_method_accessibility">Accessibility</string>
+    <string name="lock_method_root">Root (power button)</string>
+    <string name="lock_method_root_hint">Root mode simulates a real power button press, so the
+        screen turns off instantly without the brief lock-screen flicker. Tap zones and the
+        floating button still need the accessibility service; the widget and Quick Settings tile
+        work with root alone.</string>
+    <string name="root_mode_prompt_title">Root Detected</string>
+    <string name="root_mode_prompt_body">Your device appears to be rooted. TapLock can lock the
+        screen via root by simulating the power button: the screen turns off instantly, without
+        the flicker of the standard accessibility lock. You can change this later in settings.
+        Which method do you want to use?</string>
+    <string name="root_mode_use_root">Use Root</string>
+    <string name="root_mode_use_accessibility">Use Accessibility</string>
+    <string name="root_mode_checking">Checking root access…</string>
+    <string name="root_access_denied">Root access denied — using accessibility lock</string>
+    <string name="root_lock_failed">Root lock failed</string>
+
     <string name="has_completed_onboarding" translatable="false">has_completed_onboarding</string>
     <string name="onboarding_welcome_title">Welcome to TapLock</string>
     <string name="onboarding_welcome_body">Lock your screen instantly with a double-tap. Let\'s get

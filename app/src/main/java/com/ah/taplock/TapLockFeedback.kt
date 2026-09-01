@@ -13,6 +13,10 @@ object TapLockFeedback {
         toast(context, R.string.accessibility_permission_required, Toast.LENGTH_LONG)
     }
 
+    fun showRootLockFailed(context: Context) {
+        toast(context, R.string.root_lock_failed, Toast.LENGTH_LONG)
+    }
+
     fun showWidgetPinUnsupported(context: Context) {
         toast(context, R.string.widget_pin_not_supported_toast, Toast.LENGTH_LONG)
     }

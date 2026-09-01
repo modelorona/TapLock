@@ -127,6 +127,11 @@ class TapLockWidgetProvider : AppWidgetProvider() {
                 if (service != null) {
                     Log.d("TapLock", "Widget: Using direct instance - fast path")
                     service.lockScreen()
+                } else if (RootLock.isRootLockEnabled(context)) {
+                    Log.d("TapLock", "Widget: No service - locking via root")
+                    RootLock.performRootLock(context) { success ->
+                        if (!success) TapLockFeedback.showRootLockFailed(context)
+                    }
                 } else if (isAccessibilityEnabled(context)) {
                     Log.d("TapLock", "Widget: Instance null - using slow startService path")
                     Toast.makeText(context, R.string.locking_screen, Toast.LENGTH_SHORT).show()

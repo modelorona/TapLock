@@ -83,6 +83,25 @@
         funcionar mientras la Protección avanzada esté activada. Para usar TapLock, desactiva la
         Protección avanzada en Ajustes &gt; Seguridad y privacidad.</string>
     <string name="advanced_protection_open_settings">Abrir ajustes de seguridad</string>
+    <string name="lock_method_label">Método de bloqueo</string>
+    <string name="lock_method_description">Este dispositivo parece estar rooteado. Elige cómo
+        TapLock apaga la pantalla.</string>
+    <string name="lock_method_accessibility">Accesibilidad</string>
+    <string name="lock_method_root">Root (botón de encendido)</string>
+    <string name="lock_method_root_hint">El modo root simula una pulsación real del botón de
+        encendido, por lo que la pantalla se apaga al instante sin el breve parpadeo de la pantalla
+        de bloqueo. Las zonas de toque y el botón flotante siguen necesitando el servicio de
+        accesibilidad; el widget y el mosaico de ajustes rápidos funcionan solo con root.</string>
+    <string name="root_mode_prompt_title">Root detectado</string>
+    <string name="root_mode_prompt_body">Tu dispositivo parece estar rooteado. TapLock puede
+        bloquear la pantalla mediante root simulando el botón de encendido: la pantalla se apaga al
+        instante, sin el parpadeo del bloqueo estándar por accesibilidad. Puedes cambiarlo más
+        tarde en los ajustes. ¿Qué método quieres usar?</string>
+    <string name="root_mode_use_root">Usar root</string>
+    <string name="root_mode_use_accessibility">Usar accesibilidad</string>
+    <string name="root_mode_checking">Comprobando acceso root…</string>
+    <string name="root_access_denied">Acceso root denegado: se usará el bloqueo por accesibilidad</string>
+    <string name="root_lock_failed">Error del bloqueo por root</string>
     <string name="onboarding_welcome_title">Bienvenido a TapLock</string>
     <string name="onboarding_welcome_body">Bloquea la pantalla al instante con un doble toque. Vamos
         a configurarlo en unos pocos pasos.</string>
