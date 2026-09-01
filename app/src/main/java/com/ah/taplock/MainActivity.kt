@@ -169,6 +169,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     val hasCompletedOnboardingKey = stringResource(R.string.has_completed_onboarding)
     val lockMethodKey = stringResource(R.string.lock_method)
     val rootModePromptShownKey = stringResource(R.string.root_mode_prompt_shown)
+    val batteryPromptShownKey = stringResource(R.string.battery_prompt_shown)
     val rootAccessDeniedMsg = stringResource(R.string.root_access_denied)
     val lockDelayMsKey = stringResource(R.string.lock_delay_ms)
     val lockCountKey = stringResource(R.string.lock_count)
@@ -194,6 +195,8 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         mutableStateOf(!pm.isIgnoringBatteryOptimizations(context.packageName))
     }
+
+    var showBatteryPrompt by remember { mutableStateOf(false) }
 
     var isDeviceRooted by remember { mutableStateOf(false) }
     var lockMethodRoot by remember { mutableStateOf(false) }
@@ -589,6 +592,10 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         isLoadingApps = false
 
         lockMethodRoot = prefs.getString(lockMethodKey, null) == RootLock.LOCK_METHOD_ROOT
+        // Battery optimization can suspend the accessibility service, so prompt once for the
+        // exemption as soon as the service is active. Rendering order puts it before root.
+        showBatteryPrompt = isAccessibilityEnabled && isBatteryOptimized &&
+            !prefs.getBoolean(batteryPromptShownKey, false)
         // su detection touches the filesystem, so keep it off the main thread.
         val rooted = withContext(Dispatchers.IO) { RootLock.isDeviceRooted() }
         isDeviceRooted = rooted
@@ -727,6 +734,10 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
                 lockMethodRoot = prefs.getString(lockMethodKey, null) == RootLock.LOCK_METHOD_ROOT
+                // Re-evaluate on every resume so the prompt fires right after the user comes
+                // back from enabling the accessibility service.
+                showBatteryPrompt = isAccessibilityEnabled && isBatteryOptimized &&
+                    !prefs.getBoolean(batteryPromptShownKey, false)
                 showIcon = prefs.getBoolean(showWidgetIconKey, false)
                 widgetRippleEnabled = prefs.getBoolean(widgetRippleEnabledKey, true)
                 widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
@@ -2007,8 +2018,49 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             )
         }
 
+        // Shown once the accessibility service is active and before the root prompt, so the
+        // permission dialogs appear in setup order instead of stacking.
+        if (showBatteryPrompt && !showOnboarding) {
+            /** Marks the prompt as handled so it never re-fires on later launches. */
+            fun dismissBatteryPrompt() {
+                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                    .edit { putBoolean(batteryPromptShownKey, true) }
+                showBatteryPrompt = false
+            }
+
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(stringResource(R.string.battery_prompt_title)) },
+                text = { Text(stringResource(R.string.battery_prompt_body)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            dismissBatteryPrompt()
+                            // Direct system exemption dialog (REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                            // is in the manifest); fall back to the full settings list.
+                            runCatching {
+                                context.startActivity(
+                                    TapLockBatteryOptimization.requestIntent(context.packageName)
+                                )
+                            }.onFailure {
+                                context.startActivity(TapLockBatteryOptimization.settingsIntent())
+                            }
+                        },
+                        modifier = Modifier.testTag("button_battery_prompt_allow")
+                    ) {
+                        Text(stringResource(R.string.battery_prompt_allow))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { dismissBatteryPrompt() }) {
+                        Text(stringResource(R.string.not_now))
+                    }
+                }
+            )
+        }
+
         // Defer the root prompt until onboarding finishes so the dialogs don't stack.
-        if (showRootModePrompt && !showOnboarding) {
+        if (showRootModePrompt && !showOnboarding && !showBatteryPrompt) {
             AlertDialog(
                 onDismissRequest = {},
                 title = { Text(stringResource(R.string.root_mode_prompt_title)) },

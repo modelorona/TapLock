@@ -69,6 +69,12 @@
     <string name="battery_status_unrestricted">Sin restricciones (recomendado)</string>
     <string name="battery_action_fix">Corregir</string>
     <string name="battery_action_manage">Gestionar</string>
+    <string name="battery_prompt_title">Desactivar la optimización de batería</string>
+    <string name="battery_prompt_body">Android está aplicando la optimización de batería a
+        TapLock. Esto puede suspender el servicio de accesibilidad y hacer que las zonas de toque,
+        el widget y el mosaico de ajustes rápidos dejen de funcionar al cabo de un tiempo. Permite
+        que TapLock funcione sin restricciones para que el bloqueo sea fiable.</string>
+    <string name="battery_prompt_allow">Permitir</string>
     <string name="slider_timeout_label">Tiempo límite de doble toque: %dms</string>
     <string name="vibration_light">Ligera</string>
     <string name="vibration_medium">Media</string>

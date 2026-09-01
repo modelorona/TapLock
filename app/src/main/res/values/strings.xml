@@ -96,6 +96,13 @@
     <string name="battery_status_unrestricted">Unrestricted (recommended)</string>
     <string name="battery_action_fix">Fix</string>
     <string name="battery_action_manage">Manage</string>
+    <string name="battery_prompt_shown" translatable="false">battery_optimization_prompt_shown</string>
+    <string name="battery_prompt_title">Disable battery optimization</string>
+    <string name="battery_prompt_body">Android is currently applying battery optimization to
+        TapLock. This can suspend the accessibility service and make tap zones, the widget, and
+        the Quick Settings tile stop working after a while. Allow TapLock to run without
+        restrictions to keep locking reliable.</string>
+    <string name="battery_prompt_allow">Allow</string>
 
     <string name="slider_timeout_label">Double Tap Timeout: %dms</string>
     <string name="vibration_pattern" translatable="false">vibration_pattern</string>
