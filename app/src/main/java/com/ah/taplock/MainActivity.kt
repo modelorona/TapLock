@@ -129,6 +129,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     val sharedPrefName = stringResource(R.string.shared_pref_name)
     val doubleTapTimeoutKey = stringResource(R.string.double_tap_timeout)
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
+    val widgetRippleEnabledKey = stringResource(R.string.widget_ripple_enabled)
     val widgetStyleKey = stringResource(R.string.widget_style)
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
     val statusBarModeKey = stringResource(R.string.status_bar_mode)
@@ -177,6 +178,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
 
     var timeoutValue by remember { mutableFloatStateOf(300f) }
     var showIcon by remember { mutableStateOf(false) }
+    var widgetRippleEnabled by remember { mutableStateOf(true) }
     var widgetStyle by remember { mutableStateOf(TapLockWidgetStyle.default) }
     var vibrateOnLock by remember { mutableStateOf(true) }
     var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
@@ -421,6 +423,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
         timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toFloat()
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
+        widgetRippleEnabled = prefs.getBoolean(widgetRippleEnabledKey, true)
         widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
         vibrationPattern = VibrationHelper.fromPrefs(context)
@@ -626,6 +629,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
                 showIcon = prefs.getBoolean(showWidgetIconKey, false)
+                widgetRippleEnabled = prefs.getBoolean(widgetRippleEnabledKey, true)
                 widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
                 leftEdgeMode = TapZoneMode.fromStored(prefs.getString(leftEdgeModeKey, null))
                 rightEdgeMode = TapZoneMode.fromStored(prefs.getString(rightEdgeModeKey, null))
@@ -985,6 +989,25 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                         },
                         enabled = isAccessibilityEnabled,
                         modifier = Modifier.testTag("switch_show_icon")
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.widget_ripple_label))
+                    Switch(
+                        checked = widgetRippleEnabled,
+                        onCheckedChange = { isChecked ->
+                            widgetRippleEnabled = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putBoolean(widgetRippleEnabledKey, isChecked) }
+                            refreshWidgets()
+                        },
+                        enabled = isAccessibilityEnabled,
+                        modifier = Modifier.testTag("switch_widget_ripple")
                     )
                 }
 

@@ -72,11 +72,13 @@ class TapLockWidgetProvider : AppWidgetProvider() {
     ) {
         val prefs = context.getSharedPreferences(context.getString(R.string.shared_pref_name), Context.MODE_PRIVATE)
         val showIcon = prefs.getBoolean(context.getString(R.string.show_widget_icon), false)
+        val rippleEnabled = prefs.getBoolean(context.getString(R.string.widget_ripple_enabled), true)
         val widgetStyle = TapLockWidgetStyle.fromStored(
             prefs.getString(context.getString(R.string.widget_style), null)
         )
 
-        val views = RemoteViews(context.packageName, R.layout.widget_layout).apply {
+        val layoutResId = if (rippleEnabled) R.layout.widget_layout else R.layout.widget_layout_no_ripple
+        val views = RemoteViews(context.packageName, layoutResId).apply {
             setOnClickPendingIntent(
                 R.id.widget_container,
                 getPendingSelfIntent(context, appWidgetId)
