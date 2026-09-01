@@ -19,6 +19,7 @@ Single `:app` module. All source in `app/src/main/java/com/ah/taplock/`:
 - **TapLockAccessibilityService.kt** — Core service: accessibility overlays, floating lock button, and double-tap detection on status bar and lock screen
 - **TapLockWidgetProvider.kt** — RemoteViews-based 1x1 widget
 - **TapLockTileService.kt** — Quick Settings tile
+- **RootLock.kt** — Optional root lock method: detects rooted devices, verifies su access, and locks by injecting KEYCODE_POWER via a persistent root shell (no lock-screen flicker); callers fall back to the accessibility lock on failure
 - **DoubleTapDetector.kt** — Time-window tap detection with injectable clock
 - **VibrationHelper.kt** — API-level-aware vibration (Android 13+ vs older)
 - **Utils.kt** — Accessibility state check utility
@@ -42,3 +43,4 @@ Kotlin official style (`kotlin.code.style=official`). No detekt/ktlint — use `
 - Widget uses RemoteViews (no Compose). Custom icon requires manual cache invalidation via ACTION_APPWIDGET_UPDATE broadcast.
 - VibrationHelper branches on Build.VERSION for Android 13+. Both paths must be maintained.
 - SharedPreferences are synchronous throughout — changes immediately trigger recomposition via preference listener.
+- Root lock: pref `lock_method` (ACCESSIBILITY|ROOT), prompt-once flag `root_mode_prompt_shown`. The su shell is reused across locks; widget/tile can lock via `RootLock.performRootLock` without a live service instance. Every root path must keep its accessibility fallback.

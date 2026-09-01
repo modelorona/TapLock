@@ -1,0 +1,3 @@
+* Optional root lock mode on rooted devices: simulates a real power button press, no lock-screen flicker, with automatic fallback to accessibility
+* Prompt to exempt TapLock from battery optimization for more reliable locking
+* Option to disable the widget tap ripple effect
