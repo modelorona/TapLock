@@ -103,12 +103,23 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "TapLock"
 
+/**
+ * Single-activity entry point. Hosts the Compose settings UI, or acts as an invisible trampoline
+ * that locks the screen and finishes immediately when launched with the LOCK_NOW action.
+ */
 class MainActivity : ComponentActivity() {
 
+    /** Handles the LOCK_NOW trampoline before any UI; otherwise renders [TapLockScreen]. */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (intent?.action == "com.ah.taplock.LOCK_NOW") {
-            TapLockAccessibilityService.instance?.lockScreen()
+            // Prefer the live accessibility service; fall back to root when it isn't bound.
+            val service = TapLockAccessibilityService.instance
+            if (service != null) {
+                service.lockScreen()
+            } else if (RootLock.isRootLockEnabled(this)) {
+                RootLock.performRootLock(this)
+            }
             finish()
             return
         }
@@ -120,6 +131,11 @@ class MainActivity : ComponentActivity() {
     }
 
 }
+/**
+ * Full settings screen: permission status, quick-access setup (widget, tile, floating button),
+ * tap-zone configuration, behavior tweaks, and app exclusions. [accessibilityEnabledOverride]
+ * forces the accessibility state in tests instead of querying the system.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
@@ -129,6 +145,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     val sharedPrefName = stringResource(R.string.shared_pref_name)
     val doubleTapTimeoutKey = stringResource(R.string.double_tap_timeout)
     val showWidgetIconKey = stringResource(R.string.show_widget_icon)
+    val widgetRippleEnabledKey = stringResource(R.string.widget_ripple_enabled)
     val widgetStyleKey = stringResource(R.string.widget_style)
     val vibrateOnLockKey = stringResource(R.string.vibrate_on_lock)
     val statusBarModeKey = stringResource(R.string.status_bar_mode)
@@ -150,6 +167,10 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     val customIconResetMsg = stringResource(R.string.custom_icon_reset)
     val hasSeenInfoKey = stringResource(R.string.has_seen_info)
     val hasCompletedOnboardingKey = stringResource(R.string.has_completed_onboarding)
+    val lockMethodKey = stringResource(R.string.lock_method)
+    val rootModePromptShownKey = stringResource(R.string.root_mode_prompt_shown)
+    val batteryPromptShownKey = stringResource(R.string.battery_prompt_shown)
+    val rootAccessDeniedMsg = stringResource(R.string.root_access_denied)
     val lockDelayMsKey = stringResource(R.string.lock_delay_ms)
     val lockCountKey = stringResource(R.string.lock_count)
     val lockZonePercentKey = stringResource(R.string.lock_zone_percent)
@@ -175,8 +196,16 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         mutableStateOf(!pm.isIgnoringBatteryOptimizations(context.packageName))
     }
 
+    var showBatteryPrompt by remember { mutableStateOf(false) }
+
+    var isDeviceRooted by remember { mutableStateOf(false) }
+    var lockMethodRoot by remember { mutableStateOf(false) }
+    var showRootModePrompt by remember { mutableStateOf(false) }
+    var isVerifyingRoot by remember { mutableStateOf(false) }
+
     var timeoutValue by remember { mutableFloatStateOf(300f) }
     var showIcon by remember { mutableStateOf(false) }
+    var widgetRippleEnabled by remember { mutableStateOf(true) }
     var widgetStyle by remember { mutableStateOf(TapLockWidgetStyle.default) }
     var vibrateOnLock by remember { mutableStateOf(true) }
     var vibrationPattern by remember { mutableStateOf(VibrationPattern.MEDIUM) }
@@ -215,6 +244,8 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         mutableFloatStateOf(TapLockEdgeZones.DEFAULT_CORNER_SIZE_DP.toFloat())
     }
     var floatingButtonEnabled by remember { mutableStateOf(false) }
+    // State objects are kept next to their delegates so slider callbacks can read the latest
+    // value via floatValue instead of a stale lambda capture.
     val floatingButtonSizeDpState = remember {
         mutableFloatStateOf(TapLockFloatingButtonConfig.DEFAULT_SIZE_DP.toFloat())
     }
@@ -259,6 +290,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         editableTopRightCornerZoneEnabled ||
         editableBottomLeftCornerZoneEnabled ||
         editableBottomRightCornerZoneEnabled
+    // Live overlays render only while a relevant slider is actively dragged.
     val showEdgeZoneLiveOverlay = (
         anyEdgeZoneEnabled || anyCornerZoneEnabled
         ) && (
@@ -270,6 +302,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
     val showLockZoneLiveOverlay = lockScreenMode != TapZoneMode.OFF &&
         (isLockZoneSliderDragged || isLockZoneTopOffsetSliderDragged || showLockZonePreviewOverlay)
 
+    // The preview button flashes the real overlay briefly, then hides it again.
     LaunchedEffect(showLockZonePreviewOverlay) {
         if (showLockZonePreviewOverlay) {
             delay(1500.milliseconds)
@@ -277,16 +310,22 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    /** Persists a tap-zone mode selection under [baseKey]. */
     fun saveSelectedZoneMode(baseKey: String, value: TapZoneMode) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
             .edit { putString(baseKey, value.name) }
     }
 
+    /** Persists an integer zone setting under [baseKey]. */
     fun saveSelectedZoneInt(baseKey: String, value: Int) {
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
             .edit { putInt(baseKey, value) }
     }
 
+    /**
+     * Clamps and applies lock-zone values to state. The top offset ceiling depends on
+     * [zonePercent], so both values are re-clamped together to keep the zone on screen.
+     */
     fun syncLockZoneState(
         zonePercent: Int = lockZonePercent.toInt(),
         topOffsetPercent: Int = lockZoneTopOffsetPercent.toInt()
@@ -300,6 +339,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         lockZoneTopOffsetPercent = clampedTopOffsetPercent.toFloat()
     }
 
+    /** Re-clamps the current lock-zone state and writes both values to preferences. */
     fun persistLockZoneSettings() {
         syncLockZoneState()
         context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE).edit {
@@ -308,6 +348,41 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    /**
+     * Switches the lock method. Choosing root first verifies su access asynchronously and falls
+     * back to accessibility (with a toast) when denied. [fromPrompt] marks the one-time root
+     * prompt as answered so it never reappears.
+     */
+    fun applyLockMethod(useRoot: Boolean, fromPrompt: Boolean) {
+        val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+        if (!useRoot) {
+            lockMethodRoot = false
+            prefs.edit {
+                putString(lockMethodKey, RootLock.LOCK_METHOD_ACCESSIBILITY)
+                if (fromPrompt) putBoolean(rootModePromptShownKey, true)
+            }
+            if (fromPrompt) showRootModePrompt = false
+            return
+        }
+        isVerifyingRoot = true
+        RootLock.verifyRootAccess { granted ->
+            isVerifyingRoot = false
+            lockMethodRoot = granted
+            prefs.edit {
+                putString(
+                    lockMethodKey,
+                    if (granted) RootLock.LOCK_METHOD_ROOT else RootLock.LOCK_METHOD_ACCESSIBILITY
+                )
+                if (fromPrompt) putBoolean(rootModePromptShownKey, true)
+            }
+            if (fromPrompt) showRootModePrompt = false
+            if (!granted) {
+                Toast.makeText(context, rootAccessDeniedMsg, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /** Updates and persists the tap mode for the given edge [side]. */
     fun setEditableEdgeMode(side: EdgeZoneSide, mode: TapZoneMode) {
         when (side) {
             EdgeZoneSide.LEFT -> leftEdgeMode = mode
@@ -316,6 +391,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         saveSelectedZoneMode(if (side == EdgeZoneSide.LEFT) leftEdgeModeKey else rightEdgeModeKey, mode)
     }
 
+    /** Updates and persists the tap mode for the given corner [position]. */
     fun setEditableCornerMode(position: CornerZonePosition, mode: TapZoneMode) {
         val key = when (position) {
             CornerZonePosition.TOP_LEFT -> {
@@ -338,37 +414,48 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         saveSelectedZoneMode(key, mode)
     }
 
+    /** Updates the edge-zone width state during slider drag; persisted on release. */
     fun setEditableEdgeWidth(value: Float) {
         edgeZoneWidthDp = value
     }
 
+    /** Updates the edge-zone top offset state during slider drag; persisted on release. */
     fun setEditableTopOffset(value: Float) {
         edgeZoneTopOffsetPercent = value
     }
 
+    /** Updates the edge-zone bottom offset state during slider drag; persisted on release. */
     fun setEditableBottomOffset(value: Float) {
         edgeZoneBottomOffsetPercent = value
     }
 
+    /** Updates the corner-zone size state during slider drag; persisted on release. */
     fun setEditableCornerSize(value: Float) {
         cornerZoneSizeDp = value
     }
 
+    /** Re-reads how many home-screen widgets are currently placed. */
     fun refreshWidgetCount() {
         widgetCount = TapLockWidgetProvider.getWidgetCount(context)
     }
 
+    /** Redraws all placed widgets and refreshes the count shown in the UI. */
     fun refreshWidgets() {
         TapLockWidgetProvider.refreshAll(context)
         refreshWidgetCount()
     }
 
+    /** Asks the running accessibility service to rebuild the floating button, if shown. */
     fun refreshFloatingLockButtonIfRunning() {
         if (floatingButtonEnabled) {
             TapLockAccessibilityService.instance?.refreshFloatingLockButton()
         }
     }
 
+    /**
+     * Live-previews floating button size/opacity on the service overlay while a slider moves,
+     * without persisting anything.
+     */
     fun previewFloatingLockButtonIfRunning(
         sizeDp: Float = floatingButtonSizeDp,
         opacityPercent: Float = floatingButtonOpacityPercent
@@ -383,6 +470,10 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    /**
+     * Shows the system prompt to add the Quick Settings tile (Android 13+). Persists the added
+     * flag when the tile is added or already present; older versions get an unsupported toast.
+     */
     fun requestQuickSettingsTilePrompt() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             TapLockFeedback.showQuickSettingsAddUnsupported(context)
@@ -421,6 +512,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
         timeoutValue = prefs.getInt(doubleTapTimeoutKey, 300).toFloat()
         showIcon = prefs.getBoolean(showWidgetIconKey, false)
+        widgetRippleEnabled = prefs.getBoolean(widgetRippleEnabledKey, true)
         widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
         vibrateOnLock = prefs.getBoolean(vibrateOnLockKey, true)
         vibrationPattern = VibrationHelper.fromPrefs(context)
@@ -452,6 +544,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             edgeZoneWidthDpKey,
             TapLockEdgeZones.DEFAULT_WIDTH_DP
         ).toFloat()
+        // Older versions stored one "coverage" value; derive top/bottom offset defaults from it.
         val legacyEdgeCoveragePercent = prefs.getInt(
             edgeZoneCoveragePercentKey,
             TapLockEdgeZones.DEFAULT_COVERAGE_PERCENT
@@ -497,6 +590,16 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             TapLockAppRules.loadLaunchableApps(context)
         }
         isLoadingApps = false
+
+        lockMethodRoot = prefs.getString(lockMethodKey, null) == RootLock.LOCK_METHOD_ROOT
+        // Battery optimization can suspend the accessibility service, so prompt once for the
+        // exemption as soon as the service is active. Rendering order puts it before root.
+        showBatteryPrompt = isAccessibilityEnabled && isBatteryOptimized &&
+            !prefs.getBoolean(batteryPromptShownKey, false)
+        // su detection touches the filesystem, so keep it off the main thread.
+        val rooted = withContext(Dispatchers.IO) { RootLock.isDeviceRooted() }
+        isDeviceRooted = rooted
+        showRootModePrompt = rooted && !prefs.getBoolean(rootModePromptShownKey, false)
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -506,6 +609,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                     try {
                         context.contentResolver.openInputStream(uri)?.use { inputStream ->
                             val bitmap = BitmapFactory.decodeStream(inputStream)
+                            // Cap at 512px so the stored icon stays small enough for RemoteViews.
                             val scaledBitmap = if (bitmap.width > 512 || bitmap.height > 512) {
                                 bitmap.scale(512, 512)
                             } else {
@@ -531,6 +635,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
         }
     }
 
+    // Adaptive icons expose no bitmap directly, so render the launcher drawable onto a canvas.
     val defaultAppIconBitmap = remember {
         val drawable = context.packageManager.getApplicationIcon(context.packageName)
         val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 128
@@ -550,6 +655,18 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             styles = TextLinkStyles(style = SpanStyle(textDecoration = TextDecoration.Underline))
         )) {
             append(githubUrl)
+        }
+    }
+
+    val readmeRootUrl = stringResource(R.string.readme_root_url)
+    val rootNoteString = buildAnnotatedString {
+        append(stringResource(R.string.home_screen_root_note))
+        append(" ")
+        withLink(LinkAnnotation.Url(
+            url = readmeRootUrl,
+            styles = TextLinkStyles(style = SpanStyle(textDecoration = TextDecoration.Underline))
+        )) {
+            append(readmeRootUrl)
         }
     }
 
@@ -594,6 +711,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                 }
             } else null
 
+        // Tiramisu+ has a dedicated listener; older versions must watch the Settings.Secure URI.
         val accessibilityObserver =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val listener =
@@ -617,6 +735,8 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             }
         refreshAccessibilityState()
 
+        // Widgets, the tile, and system Settings can change prefs while the app is backgrounded,
+        // so re-read everything on every resume.
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isAccessibilityEnabled = accessibilityEnabledOverride ?: isAccessibilityEnabled(context)
@@ -625,7 +745,20 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                 isBatteryOptimized = !pm.isIgnoringBatteryOptimizations(context.packageName)
                 val prefs = context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
                 lockCount = prefs.getInt(lockCountKey, 0)
+                lockMethodRoot = prefs.getString(lockMethodKey, null) == RootLock.LOCK_METHOD_ROOT
+                // Root managers can expose su after first launch, so re-detect on every resume.
+                coroutineScope.launch {
+                    val rooted = withContext(Dispatchers.IO) { RootLock.isDeviceRooted() }
+                    isDeviceRooted = rooted
+                    showRootModePrompt =
+                        rooted && !prefs.getBoolean(rootModePromptShownKey, false)
+                }
+                // Re-evaluate on every resume so the prompt fires right after the user comes
+                // back from enabling the accessibility service.
+                showBatteryPrompt = isAccessibilityEnabled && isBatteryOptimized &&
+                    !prefs.getBoolean(batteryPromptShownKey, false)
                 showIcon = prefs.getBoolean(showWidgetIconKey, false)
+                widgetRippleEnabled = prefs.getBoolean(widgetRippleEnabledKey, true)
                 widgetStyle = TapLockWidgetStyle.fromStored(prefs.getString(widgetStyleKey, null))
                 leftEdgeMode = TapZoneMode.fromStored(prefs.getString(leftEdgeModeKey, null))
                 rightEdgeMode = TapZoneMode.fromStored(prefs.getString(rightEdgeModeKey, null))
@@ -732,7 +865,8 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                             .edit { putBoolean(hasSeenInfoKey, true) }
                     }
                 },
-                disclaimerString = disclaimerString
+                disclaimerString = disclaimerString,
+                rootNoteString = rootNoteString
             )
 
             if (isAdvancedProtectionEnabled) {
@@ -887,6 +1021,56 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                 }
             }
 
+            if (isDeviceRooted) {
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.lock_method_label),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            stringResource(R.string.lock_method_description),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = !lockMethodRoot,
+                                onClick = { applyLockMethod(useRoot = false, fromPrompt = false) },
+                                enabled = !isVerifyingRoot,
+                                label = { Text(stringResource(R.string.lock_method_accessibility)) },
+                                modifier = Modifier.testTag("chip_lock_method_accessibility")
+                            )
+                            FilterChip(
+                                selected = lockMethodRoot,
+                                onClick = { applyLockMethod(useRoot = true, fromPrompt = false) },
+                                enabled = !isVerifyingRoot,
+                                label = { Text(stringResource(R.string.lock_method_root)) },
+                                modifier = Modifier.testTag("chip_lock_method_root")
+                            )
+                        }
+                        if (isVerifyingRoot) {
+                            Text(
+                                stringResource(R.string.root_mode_checking),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.lock_method_root_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             val accessibilityHint = stringResource(R.string.accessibility_required_hint)
             val appWidgetManager = remember { AppWidgetManager.getInstance(context) }
             val widgetPinSupported = remember { appWidgetManager.isRequestPinAppWidgetSupported }
@@ -985,6 +1169,25 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                         },
                         enabled = isAccessibilityEnabled,
                         modifier = Modifier.testTag("switch_show_icon")
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.widget_ripple_label))
+                    Switch(
+                        checked = widgetRippleEnabled,
+                        onCheckedChange = { isChecked ->
+                            widgetRippleEnabled = isChecked
+                            context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                                .edit { putBoolean(widgetRippleEnabledKey, isChecked) }
+                            refreshWidgets()
+                        },
+                        enabled = isAccessibilityEnabled,
+                        modifier = Modifier.testTag("switch_widget_ripple")
                     )
                 }
 
@@ -1819,7 +2022,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                     TextButton(
                         onClick = {
                             showDialog = false
-                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            context.startActivity(accessibilitySettingsIntent(context))
                         }
                     ) {
                         Text(stringResource(R.string.agree))
@@ -1835,7 +2038,81 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             )
         }
 
+        // Shown once the accessibility service is active and before the root prompt, so the
+        // permission dialogs appear in setup order instead of stacking.
+        if (showBatteryPrompt && !showOnboarding) {
+            /** Marks the prompt as handled so it never re-fires on later launches. */
+            fun dismissBatteryPrompt() {
+                context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
+                    .edit { putBoolean(batteryPromptShownKey, true) }
+                showBatteryPrompt = false
+            }
+
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(stringResource(R.string.battery_prompt_title)) },
+                text = { Text(stringResource(R.string.battery_prompt_body)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            dismissBatteryPrompt()
+                            // Direct system exemption dialog (REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                            // is in the manifest); fall back to the full settings list.
+                            runCatching {
+                                context.startActivity(
+                                    TapLockBatteryOptimization.requestIntent(context.packageName)
+                                )
+                            }.onFailure {
+                                context.startActivity(TapLockBatteryOptimization.settingsIntent())
+                            }
+                        },
+                        modifier = Modifier.testTag("button_battery_prompt_allow")
+                    ) {
+                        Text(stringResource(R.string.battery_prompt_allow))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { dismissBatteryPrompt() }) {
+                        Text(stringResource(R.string.not_now))
+                    }
+                }
+            )
+        }
+
+        // Defer the root prompt until onboarding finishes so the dialogs don't stack.
+        if (showRootModePrompt && !showOnboarding && !showBatteryPrompt) {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(stringResource(R.string.root_mode_prompt_title)) },
+                text = {
+                    Text(
+                        if (isVerifyingRoot) stringResource(R.string.root_mode_checking)
+                        else stringResource(R.string.root_mode_prompt_body)
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { applyLockMethod(useRoot = true, fromPrompt = true) },
+                        enabled = !isVerifyingRoot
+                    ) {
+                        Text(stringResource(R.string.root_mode_use_root))
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { applyLockMethod(useRoot = false, fromPrompt = true) },
+                        enabled = !isVerifyingRoot
+                    ) {
+                        Text(stringResource(R.string.root_mode_use_accessibility))
+                    }
+                }
+            )
+        }
+
         if (showOnboarding) {
+            val onboardingWidgetManager = remember { AppWidgetManager.getInstance(context) }
+            val onboardingWidgetPinSupported =
+                remember { onboardingWidgetManager.isRequestPinAppWidgetSupported }
             val onboardingTitle = when (onboardingStep) {
                 0 -> stringResource(R.string.onboarding_welcome_title)
                 1 -> stringResource(R.string.onboarding_accessibility_title)
@@ -1845,7 +2122,11 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
             val onboardingBody = when (onboardingStep) {
                 0 -> stringResource(R.string.onboarding_welcome_body)
                 1 -> stringResource(R.string.onboarding_accessibility_body)
-                2 -> stringResource(R.string.onboarding_widget_body)
+                2 -> if (onboardingWidgetPinSupported) {
+                    stringResource(R.string.onboarding_widget_body_pin)
+                } else {
+                    stringResource(R.string.onboarding_widget_body)
+                }
                 else -> stringResource(R.string.onboarding_done_body)
             }
 
@@ -1857,7 +2138,17 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                     TextButton(
                         onClick = {
                             when (onboardingStep) {
-                                1 -> context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                1 -> context.startActivity(accessibilitySettingsIntent(context))
+                                2 -> if (onboardingWidgetPinSupported) {
+                                    val requested = onboardingWidgetManager.requestPinAppWidget(
+                                        ComponentName(context, TapLockWidgetProvider::class.java),
+                                        null,
+                                        null
+                                    )
+                                    if (!requested) {
+                                        TapLockFeedback.showWidgetPinUnsupported(context)
+                                    }
+                                }
                                 3 -> {
                                     showOnboarding = false
                                     context.getSharedPreferences(sharedPrefName, Context.MODE_PRIVATE)
@@ -1870,6 +2161,11 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                         Text(
                             when (onboardingStep) {
                                 1 -> stringResource(R.string.onboarding_open_settings)
+                                2 -> if (onboardingWidgetPinSupported) {
+                                    stringResource(R.string.onboarding_add_widget)
+                                } else {
+                                    stringResource(R.string.onboarding_next)
+                                }
                                 3 -> stringResource(R.string.onboarding_done)
                                 else -> stringResource(R.string.onboarding_next)
                             }

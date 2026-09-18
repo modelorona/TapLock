@@ -5,9 +5,12 @@
     <string name="double_tap_timeout" translatable="false">double_tap_timeout</string>
     <string name="show_widget_icon" translatable="false">show_widget_icon</string>
     <string name="show_widget_icon_label">Show Widget Icon</string>
+    <string name="widget_ripple_enabled" translatable="false">widget_ripple_enabled</string>
+    <string name="widget_ripple_label">Widget Ripple Effect</string>
     <string name="widget_style" translatable="false">widget_style</string>
     <string name="widget_style_label">Widget Style</string>
-    <string name="widget_style_description">Pick a clearer home screen look without changing how the widget works.</string>
+    <string name="widget_style_description">Pick a clearer home screen look without changing how the
+        widget works.</string>
     <string name="widget_style_transparent">Transparent</string>
     <string name="widget_style_glass">Glass</string>
     <string name="widget_style_solid">Solid</string>
@@ -16,25 +19,39 @@
     <string name="reset_icon">Reset Default</string>
     <string name="custom_icon_updated">Custom icon updated</string>
     <string name="custom_icon_reset">Custom icon reset</string>
-    <string name="accessibility_service_description">The TapLock accessibility service is necessary to be able to power off the screen.</string>
-    <string name="home_screen_description">With this app, you can create a resizable transparent widget for your home screen. Double-tap the widget to lock your phone instantly! Accessibility permissions are required for this to work.</string>
-    <string name="home_screen_disclaimer">This app collects no personal information and does not access your data. For transparency, the source code is available via the link below:</string>
-    <string name="home_screen_instructions">To add the widget, please go to your home screen, long-press on empty space, and find the TapLock widget.</string>
+    <string name="accessibility_service_description">The TapLock accessibility service is necessary
+        to be able to power off the screen.</string>
+    <string name="home_screen_description">With this app, you can create a resizable transparent
+        widget for your home screen. Double-tap the widget to lock your phone instantly!
+        Accessibility permissions are required for this to work.</string>
+    <string name="home_screen_disclaimer">This app collects no personal information and does not
+        access your data. For transparency, the source code is available via the link below:</string>
+    <string name="home_screen_instructions">To add the widget, please go to your home screen,
+        long-press on empty space, and find the TapLock widget.</string>
+    <string name="home_screen_root_note">On rooted devices, an optional root lock mode is offered.
+        Root access is only visible to TapLock when its process starts, so if the option doesn\'t
+        appear, force-close and reopen the app. See the \"Root lock mode\" section in the README
+        for details:</string>
     <string name="github_url" translatable="false">https://github.com/modelorona/TapLock</string>
+    <string name="readme_root_url" translatable="false">
+        https://github.com/modelorona/TapLock#root-lock-mode-optional-rooted-devices-only</string>
     <string name="required_permissions">Required Permissions</string>
     <string name="accessibility_service">Accessibility Service</string>
     <string name="quick_access_label">Quick Access</string>
     <string name="quick_access_description">Widget, tile, and floating button setup.</string>
     <string name="widget_section_label">Home Screen Widget</string>
     <string name="ambient_triggers_label">Ambient Triggers</string>
-    <string name="ambient_triggers_description">Gestures and screen regions that can lock the phone while you use it.</string>
+    <string name="ambient_triggers_description">Gestures and screen regions that can lock the phone
+        while you use it.</string>
     <string name="behavior_label">Behavior</string>
     <string name="behavior_description">Timing, vibration, and test controls.</string>
     <string name="app_rules_label">App Rules</string>
     <string name="enable">Enable</string>
     <string name="enabled">Enabled</string>
     <string name="accessibility_permission_title">Accessibility Permission Required</string>
-    <string name="accessibility_permission_description">TapLock needs accessibility services to detect double taps and lock the screen. TapLock does not collect any other data or interaction that you have with your device.</string>
+    <string name="accessibility_permission_description">TapLock needs accessibility services to
+        detect double taps and lock the screen. TapLock does not collect any other data or
+        interaction that you have with your device.</string>
     <string name="agree">Agree</string>
     <string name="not_now">Not now</string>
     <string name="tile_label">Lock</string>
@@ -42,16 +59,20 @@
     <string name="accessibility_permission_required">Accessibility permission required</string>
     <string name="vibrate_on_lock" translatable="false">vibrate_on_lock</string>
     <string name="vibrate_on_lock_label">Vibrate on Lock</string>
-    <string name="battery_optimization_description">If the widget stops working after a while, try disabling battery optimization for this app. This allows the accessibility service to run more reliably in the background.</string>
+    <string name="battery_optimization_description">If the widget stops working after a while, try
+        disabling battery optimization for this app. This allows the accessibility service to run
+        more reliably in the background.</string>
     <string name="status_bar_mode" translatable="false">status_bar_mode</string>
     <string name="status_bar_mode_label">Status Bar</string>
     <string name="status_bar_mode_description">Tap the status bar to lock the screen.</string>
     <string name="status_bar_camera_area_only" translatable="false">status_bar_camera_area_only</string>
     <string name="status_bar_camera_area_only_label">Notch/Camera Area Only</string>
-    <string name="status_bar_camera_area_only_description">Experimental: limit status bar taps to the notch or camera area when Android reports it.</string>
+    <string name="status_bar_camera_area_only_description">Experimental: limit status bar taps to
+        the notch or camera area when Android reports it.</string>
     <string name="lock_screen_mode" translatable="false">lock_screen_mode</string>
     <string name="lock_screen_mode_label">Lock Screen</string>
-    <string name="lock_screen_mode_description">When the screen is locked, tap inside the configured area to lock.</string>
+    <string name="lock_screen_mode_description">When the screen is locked, tap inside the configured
+        area to lock.</string>
     <string name="left_edge_mode" translatable="false">left_edge_mode</string>
     <string name="right_edge_mode" translatable="false">right_edge_mode</string>
     <string name="top_left_corner_mode" translatable="false">top_left_corner_mode</string>
@@ -68,7 +89,8 @@
     <string name="corner_zone_size_dp" translatable="false">corner_zone_size_dp</string>
     <string name="edge_zone_coverage_percent" translatable="false">edge_zone_coverage_percent</string>
     <string name="edge_zone_top_offset_percent" translatable="false">edge_zone_top_offset_percent</string>
-    <string name="edge_zone_bottom_offset_percent" translatable="false">edge_zone_bottom_offset_percent</string>
+    <string name="edge_zone_bottom_offset_percent" translatable="false">
+        edge_zone_bottom_offset_percent</string>
     <string name="excluded_apps" translatable="false">excluded_apps</string>
     <string name="last_foreground_package" translatable="false">last_foreground_package</string>
 
@@ -80,6 +102,13 @@
     <string name="battery_status_unrestricted">Unrestricted (recommended)</string>
     <string name="battery_action_fix">Fix</string>
     <string name="battery_action_manage">Manage</string>
+    <string name="battery_prompt_shown" translatable="false">battery_optimization_prompt_shown</string>
+    <string name="battery_prompt_title">Disable battery optimization</string>
+    <string name="battery_prompt_body">Android is currently applying battery optimization to
+        TapLock. This can suspend the accessibility service and make tap zones, the widget, and
+        the Quick Settings tile stop working after a while. Allow TapLock to run without
+        restrictions to keep locking reliable.</string>
+    <string name="battery_prompt_allow">Allow</string>
 
     <string name="slider_timeout_label">Double Tap Timeout: %dms</string>
     <string name="vibration_pattern" translatable="false">vibration_pattern</string>
@@ -89,18 +118,51 @@
     <string name="accessibility_required_hint">Enable accessibility service to use these features</string>
 
     <string name="advanced_protection_title">Advanced Protection is on</string>
-    <string name="advanced_protection_description">This device has Android\'s Advanced Protection turned on, which blocks all third-party accessibility services. TapLock relies on an accessibility service to lock the screen, so it can\'t work while Advanced Protection is enabled. To use TapLock, turn off Advanced Protection in Settings &gt; Security &amp; privacy.</string>
+    <string name="advanced_protection_description">This device has Android\'s Advanced Protection
+        turned on, which blocks all third-party accessibility services. TapLock relies on an
+        accessibility service to lock the screen, so it can\'t work while Advanced Protection is
+        enabled. To use TapLock, turn off Advanced Protection in Settings &gt; Security &amp;
+        privacy.</string>
     <string name="advanced_protection_open_settings">Open Security settings</string>
+
+    <string name="lock_method" translatable="false">lock_method</string>
+    <string name="root_mode_prompt_shown" translatable="false">root_mode_prompt_shown</string>
+    <string name="lock_method_label">Lock Method</string>
+    <string name="lock_method_description">This device appears to be rooted. Choose how TapLock
+        turns off the screen.</string>
+    <string name="lock_method_accessibility">Accessibility</string>
+    <string name="lock_method_root">Root (power button)</string>
+    <string name="lock_method_root_hint">Root mode simulates a real power button press, so the
+        screen turns off instantly without the brief lock-screen flicker. Tap zones and the
+        floating button still need the accessibility service; the widget and Quick Settings tile
+        work with root alone.</string>
+    <string name="root_mode_prompt_title">Root Detected</string>
+    <string name="root_mode_prompt_body">Your device appears to be rooted. TapLock can lock the
+        screen via root by simulating the power button: the screen turns off instantly, without
+        the flicker of the standard accessibility lock. You can change this later in settings.
+        Which method do you want to use?</string>
+    <string name="root_mode_use_root">Use Root</string>
+    <string name="root_mode_use_accessibility">Use Accessibility</string>
+    <string name="root_mode_checking">Checking root access…</string>
+    <string name="root_access_denied">Root access denied — using accessibility lock</string>
+    <string name="root_lock_failed">Root lock failed</string>
 
     <string name="has_completed_onboarding" translatable="false">has_completed_onboarding</string>
     <string name="onboarding_welcome_title">Welcome to TapLock</string>
-    <string name="onboarding_welcome_body">Lock your screen instantly with a double-tap. Let\'s get you set up in a few quick steps.</string>
+    <string name="onboarding_welcome_body">Lock your screen instantly with a double-tap. Let\'s get
+        you set up in a few quick steps.</string>
     <string name="onboarding_accessibility_title">Enable Accessibility</string>
-    <string name="onboarding_accessibility_body">TapLock needs the accessibility service to detect double-taps and lock your screen. No other data is collected.</string>
+    <string name="onboarding_accessibility_body">TapLock needs the accessibility service to detect
+        double-taps and lock your screen. No other data is collected.</string>
     <string name="onboarding_widget_title">Add the Widget</string>
-    <string name="onboarding_widget_body">Go to your home screen, long-press on empty space, and add the TapLock widget. Double-tap it to lock!</string>
+    <string name="onboarding_widget_body">Go to your home screen, long-press on empty space, and add
+        the TapLock widget. Double-tap it to lock!</string>
+    <string name="onboarding_widget_body_pin">Tap Add Widget to place the TapLock widget on your
+        home screen. Double-tap it to lock!</string>
+    <string name="onboarding_add_widget">Add Widget</string>
     <string name="onboarding_done_title">You\'re All Set!</string>
-    <string name="onboarding_done_body">TapLock is ready to use. You can customise settings any time from this screen.</string>
+    <string name="onboarding_done_body">TapLock is ready to use. You can customise settings any time
+        from this screen.</string>
     <string name="onboarding_next">Next</string>
     <string name="onboarding_open_settings">Open Settings</string>
     <string name="onboarding_done">Done</string>
@@ -125,7 +187,8 @@
     <string name="add_widget_button">Add Widget to Home Screen</string>
     <string name="add_another_widget_button">Add Another Widget</string>
     <string name="widget_preview_label">Widget Preview</string>
-    <string name="widget_pin_not_supported_toast">Your launcher doesn\'t support pinning widgets from apps. Add TapLock from the home screen widget picker.</string>
+    <string name="widget_pin_not_supported_toast">Your launcher doesn\'t support pinning widgets
+        from apps. Add TapLock from the home screen widget picker.</string>
     <string name="widget_status_none">No home screen widget added yet.</string>
     <plurals name="widget_count_label">
         <item quantity="one">%d widget on your home screen</item>
@@ -133,16 +196,19 @@
     </plurals>
     <string name="quick_settings_tile_added" translatable="false">quick_settings_tile_added</string>
     <string name="quick_settings_tile_label">Quick Settings Tile</string>
-    <string name="quick_settings_tile_description">Add TapLock to Quick Settings for a native one-tap lock action.</string>
+    <string name="quick_settings_tile_description">Add TapLock to Quick Settings for a native
+        one-tap lock action.</string>
     <string name="quick_settings_tile_button">Add Tile</string>
     <string name="quick_settings_tile_added_status">Added to Quick Settings</string>
     <string name="quick_settings_tile_missing_status">Not added yet</string>
-    <string name="quick_settings_tile_manual_hint">Android 12 and lower: add TapLock from the Quick Settings edit screen.</string>
+    <string name="quick_settings_tile_manual_hint">Android 12 and lower: add TapLock from the Quick
+        Settings edit screen.</string>
     <string name="quick_settings_tile_added_toast">TapLock tile added to Quick Settings</string>
     <string name="quick_settings_tile_already_added_toast">TapLock tile is already in Quick Settings</string>
     <string name="quick_settings_tile_not_added_toast">TapLock tile was not added</string>
     <string name="quick_settings_tile_failed_toast">Couldn\'t add the Quick Settings tile right now</string>
-    <string name="quick_settings_tile_manual_toast">Add TapLock from the Quick Settings edit screen on this Android version.</string>
+    <string name="quick_settings_tile_manual_toast">Add TapLock from the Quick Settings edit screen
+        on this Android version.</string>
     <string name="lock_zone_percent" translatable="false">lock_zone_percent</string>
     <string name="lock_zone_top_offset_percent" translatable="false">lock_zone_top_offset_percent</string>
     <string name="lock_zone_label">Lock screen tap zone: %d%%</string>
@@ -150,7 +216,8 @@
     <string name="lock_zone_preview_label">Active area preview</string>
     <string name="lock_zone_preview_button">Highlight active area</string>
     <string name="edge_zones_label">Screen Edge And Corner Lock Zones</string>
-    <string name="edge_zones_description">Tap an enabled screen edge or corner to lock. Swiping inward from an enabled screen edge still goes Back.</string>
+    <string name="edge_zones_description">Tap an enabled screen edge or corner to lock. Swiping
+        inward from an enabled screen edge still goes Back.</string>
     <string name="edge_zones_portrait_only">These settings apply in both portrait and landscape.</string>
     <string name="edge_zones_subsection_label">Screen Edges</string>
     <string name="left_edge_mode_label">Left Screen Edge</string>
@@ -189,11 +256,13 @@
 
     <string name="floating_button_enabled" translatable="false">floating_button_enabled</string>
     <string name="floating_button_size_dp" translatable="false">floating_button_size_dp</string>
-    <string name="floating_button_opacity_percent" translatable="false">floating_button_opacity_percent</string>
+    <string name="floating_button_opacity_percent" translatable="false">
+        floating_button_opacity_percent</string>
     <string name="floating_button_position_x" translatable="false">floating_button_position_x</string>
     <string name="floating_button_position_y" translatable="false">floating_button_position_y</string>
     <string name="floating_button_label">Floating Lock Button</string>
-    <string name="floating_button_description">Show a floating button over other apps to lock with a single tap.</string>
+    <string name="floating_button_description">Show a floating button over other apps to lock with a
+        single tap.</string>
     <string name="floating_button_size_label">Button size: %ddp</string>
     <string name="floating_button_opacity_label">Button opacity: %d%%</string>
     <string name="floating_button_preview_label">Floating button preview</string>

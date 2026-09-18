@@ -18,6 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
+/**
+ * Miniature phone mockup shown in settings that mirrors the configured lock-screen tap zone,
+ * scaled to a fixed preview frame rather than real screen pixels.
+ */
 @Composable
 fun LockScreenZonePreview(
     lockZonePercent: Int,
@@ -75,6 +79,10 @@ fun LockScreenZonePreview(
     }
 }
 
+/**
+ * Full-screen translucent overlay drawn while the user drags the lock-zone sliders, showing the
+ * real zone extent on the actual screen.
+ */
 @Composable
 fun LockScreenZoneLiveOverlay(
     lockZonePercent: Int,

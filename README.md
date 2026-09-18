@@ -8,14 +8,13 @@
 [![Download on Google Play](https://img.shields.io/badge/Download_It-Play_Store-green?logo=googleplay)](https://play.google.com/store/apps/details?id=com.ah.taplock)
 ![F-Droid Version](https://img.shields.io/f-droid/v/com.ah.taplock)
 
-
 <img src="app/src/main/ic_launcher-playstore.png" width="256" style="display: block; margin: auto;" alt="TapLock Logo">
 
 A minimalist Android widget that lets you lock your screen with a double tap. Perfect for one-handed use and quick screen locking.
 
 ## Why TapLock?
 
-While there are several screen-locking apps available on the Play Store, they all share a concerning characteristic: they're closed source while requiring significant system permissions. 
+While there are several screen-locking apps available on the Play Store, they all share a concerning characteristic: they're closed source while requiring significant system permissions.
 
 The Accessibility Service permission, which is necessary for screen locking functionality, is particularly powerful - it can:
 
@@ -25,12 +24,14 @@ The Accessibility Service permission, which is necessary for screen locking func
 - Access sensitive information
 
 With closed-source applications, you're essentially trusting unknown code with these extensive capabilities. You have no way to verify:
+
 - What data they're actually collecting
 - Where that data might be sent
 - What other hidden functionalities might exist
 - How securely they handle their permissions
 
 TapLock solves this trust problem through radical transparency:
+
 - 100% open source - every line of code is visible and auditable
 - No internet permissions - physically cannot transmit data
 - Minimal, focused codebase - easy to review and verify
@@ -46,6 +47,7 @@ You don't have to trust our privacy claims - you can verify them yourself in the
 - 🎯 Customizable double-tap timeout
 - 🔍 Transparent widget - doesn't interfere with your home screen aesthetics
 - 🛡️ Minimal permissions - only uses accessibility service for screen locking
+- 🪄 Optional root lock mode on rooted devices - simulates a real power button press, so the screen turns off instantly without the lock-screen flicker
 - 📱 Resizable widget
 - 🎨 Material Design 3 UI
 - 🔒 Privacy focused - collects no personal data
@@ -53,6 +55,7 @@ You don't have to trust our privacy claims - you can verify them yourself in the
 ## Getting Started
 
 ### Requirements
+
 - Android 12 (API 31) or higher
 - 1MB of free space
 
@@ -73,9 +76,31 @@ You don't have to trust our privacy claims - you can verify them yourself in the
 2. Adjust the double-tap timeout in Settings (default: 300ms)
 3. The widget is transparent by default and can be resized to your preference
 
+#### Root lock mode (optional, rooted devices only)
+
+If TapLock detects a rooted device, it offers a choice of lock method:
+
+- **Accessibility** (default): uses Android's `GLOBAL_ACTION_LOCK_SCREEN`, which briefly shows the lock screen before the display turns off.
+- **Root (power button)**: injects a power button key event through a root (`su`) shell, so the screen turns off instantly with no flicker - exactly like pressing the physical power button.
+
+When you select root mode, TapLock requests superuser access once from your root manager (e.g. Magisk). If root access is denied or the shell fails, TapLock automatically falls back to the accessibility lock. With root mode enabled, the widget and Quick Settings tile can lock the screen even without the accessibility service, though the tap-based lock triggers (status bar, lock screen, floating button) still require it.
+
+##### Root option not showing up?
+
+TapLock detects root by looking for the `su` binary. Managers like Magisk mount `su` into an app's namespace **only when the app's process starts** — so if TapLock was already running (even in the background) before root became visible to it, the root option cannot appear until the process is restarted. TapLock re-checks on every resume, but the namespace limitation means a restart is usually what actually fixes it.
+
+If you're rooted but don't see the lock method choice:
+
+1. **Force-close TapLock and reopen it**: go to system Settings → Apps → TapLock → Force stop (or long-press the app icon → App info → Force stop), then open the app again. A device reboot also works.
+2. **Check your root manager's deny/hide list**: make sure TapLock is _not_ in Magisk's DenyList (or your manager's equivalent root-hiding feature), otherwise `su` stays invisible to it permanently.
+3. **Grant superuser access before first launch** (if your manager supports it): managers such as KernelSU or APatch let you pre-grant root to an app from their own UI. Doing this before opening TapLock for the first time ensures root is detected immediately. Magisk only lists apps after their first `su` request, so with Magisk just use the force-close approach and approve the prompt when TapLock asks.
+
+When the superuser prompt appears, choose "Grant" (and "remember"/"forever" if offered) so subsequent locks don't re-prompt.
+
 ## Building from Source
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/modelorona/TapLock.git
 ```
@@ -83,6 +108,7 @@ git clone https://github.com/modelorona/TapLock.git
 2. Open the project in Android Studio Hedgehog or later
 
 3. Build the project:
+
 ```bash
 ./gradlew assembleDebug
 ```
@@ -90,9 +116,10 @@ git clone https://github.com/modelorona/TapLock.git
 ## Privacy
 
 TapLock is designed with privacy in mind:
+
 - No internet connectivity required
 - No data collection
-- Minimal permissions (only Accessibility Service)
+- Minimal permissions (only Accessibility Service; superuser access is optional, opt-in, and used solely to simulate the power button)
 - Open source for transparency
 
 ## Contributing

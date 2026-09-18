@@ -69,6 +69,10 @@ private val LightColorScheme = lightColorScheme(
     onErrorContainer = LightOnErrorContainer
 )
 
+/**
+ * App-wide Material 3 theme. [darkTheme] follows the system by default; [dynamicColor] can opt
+ * into Material You wallpaper-based palettes instead of the fixed brand colors.
+ */
 @Composable
 fun TapLockTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

@@ -13,6 +13,7 @@ Funciones adicionales:
 * Tiempo límite de doble toque y retardo de bloqueo ajustables
 * Vibración opcional con patrones ligero, medio y fuerte
 * Exclusiones por app para ignorar los toques en las apps que elijas
+* Modo de bloqueo root opcional en dispositivos rooteados: simula una pulsación real del botón de encendido, la pantalla se apaga al instante y sin parpadeo
 * Disponible en inglés y español
 
 TapLock usa el servicio de accesibilidad de Android para apagar la pantalla. Este permiso es necesario para que la app funcione, y TapLock no recopila ninguna información personal ni registra ninguna otra interacción que tengas con el dispositivo. El código fuente completo está disponible para mayor transparencia.
