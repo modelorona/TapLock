@@ -1,0 +1,3 @@
+* Modo de bloqueo root opcional en dispositivos rooteados: simula una pulsación real del botón de encendido, sin parpadeo de la pantalla de bloqueo y con reserva automática a accesibilidad
+* Aviso para eximir a TapLock de la optimización de batería y bloquear con más fiabilidad
+* Opción para desactivar el efecto de onda al tocar el widget

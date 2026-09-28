@@ -23,6 +23,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 
+/**
+ * Dialog listing launchable [apps] with checkboxes to build [excludedPackages]. Filtering by
+ * [searchQuery] matches both label and package name; all state is hoisted to the caller so
+ * toggles persist immediately.
+ */
 @Composable
 fun AppExclusionDialog(
     apps: List<TapLockAppInfo>,
@@ -124,6 +129,7 @@ fun AppExclusionDialog(
     )
 }
 
+/** Single app row: checkbox plus label and package name, toggled by tapping anywhere. */
 @Composable
 private fun AppExclusionRow(
     app: TapLockAppInfo,

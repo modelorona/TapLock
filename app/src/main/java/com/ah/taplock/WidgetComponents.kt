@@ -21,6 +21,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 
+/**
+ * Settings preview of the home-screen widget in the chosen [style]. Colors approximate the real
+ * widget background drawables, which RemoteViews render on the launcher and can't be reused here.
+ */
 @Composable
 fun WidgetStylePreview(
     style: TapLockWidgetStyle,
@@ -83,6 +87,10 @@ fun WidgetStylePreview(
     }
 }
 
+/**
+ * Settings preview of the floating lock button at [sizeDp] and [opacityPercent], mirroring the
+ * proportions the accessibility overlay uses (icon at ~68% of the button size).
+ */
 @Composable
 fun FloatingButtonPreview(
     iconBitmap: ImageBitmap,

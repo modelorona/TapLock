@@ -3,6 +3,7 @@ package com.ah.taplock
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 
+/** Visual style of the home-screen widget, pairing its settings label with a background drawable. */
 enum class TapLockWidgetStyle(
     @field:StringRes val labelResId: Int,
     @field:DrawableRes val backgroundResId: Int
@@ -27,6 +28,7 @@ enum class TapLockWidgetStyle(
     companion object {
         val default = TRANSPARENT
 
+        /** Parses a stored preference [value], tolerating null or stale names via [default]. */
         fun fromStored(value: String?): TapLockWidgetStyle =
             entries.firstOrNull { it.name == value } ?: default
     }

@@ -2,11 +2,13 @@ package com.ah.taplock
 
 import kotlin.math.roundToInt
 
+/** Which screen edge an edge tap zone is anchored to. */
 enum class EdgeZoneSide {
     LEFT,
     RIGHT
 }
 
+/** Which screen corner a corner tap zone occupies. */
 enum class CornerZonePosition {
     TOP_LEFT,
     TOP_RIGHT,
@@ -14,6 +16,7 @@ enum class CornerZonePosition {
     BOTTOM_RIGHT
 }
 
+/** Resolved pixel geometry of an edge or corner tap zone overlay. */
 data class EdgeZoneFrame(
     val widthPx: Int,
     val heightPx: Int,
@@ -21,6 +24,11 @@ data class EdgeZoneFrame(
     val y: Int
 )
 
+/**
+ * Pure geometry for edge and corner tap zones. Edges are described by a dp width plus top/bottom
+ * offsets in percent of screen height; corners by a square dp size. Kept free of Android types so
+ * it is unit-testable.
+ */
 object TapLockEdgeZones {
     const val DEFAULT_WIDTH_DP = 18
     const val MIN_WIDTH_DP = 12
@@ -39,6 +47,10 @@ object TapLockEdgeZones {
     const val MIN_OFFSET_PERCENT = 0
     const val MAX_OFFSET_PERCENT = 40
 
+    /**
+     * Computes the frame of an edge zone on [side]: [widthDp] wide, spanning the screen height
+     * minus [topOffsetPercent] and [bottomOffsetPercent]. Inputs are clamped to supported ranges.
+     */
     fun buildFrame(
         screenWidthPx: Int,
         screenHeightPx: Int,
@@ -73,6 +85,7 @@ object TapLockEdgeZones {
         )
     }
 
+    /** Computes the square frame of a corner zone of [sizeDp] anchored at [position]. */
     fun buildCornerFrame(
         screenWidthPx: Int,
         screenHeightPx: Int,
@@ -105,6 +118,10 @@ object TapLockEdgeZones {
         )
     }
 
+    /**
+     * Migrates the legacy single "coverage" preference into centered top/bottom offsets, giving
+     * any odd remainder to the bottom.
+     */
     fun deriveOffsetsFromCoverage(coveragePercent: Int): Pair<Int, Int> {
         val clampedCoveragePercent =
             coveragePercent.coerceIn(MIN_COVERAGE_PERCENT, MAX_COVERAGE_PERCENT)

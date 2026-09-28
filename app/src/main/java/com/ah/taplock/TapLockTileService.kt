@@ -11,25 +11,38 @@ import android.service.quicksettings.TileService
 import android.widget.Toast
 import androidx.core.content.edit
 
+/**
+ * Quick Settings tile that locks the screen on tap. Mirrors the widget's lock strategy: live
+ * service instance first, root shell second, startService fallback, otherwise point the user at
+ * accessibility settings. Also tracks whether the tile is currently added, for the settings UI.
+ */
 class TapLockTileService : TileService() {
 
+    /** Records that the tile was added and syncs its visual state. */
     override fun onTileAdded() {
         super.onTileAdded()
         persistTileAdded(true)
         updateTileState()
     }
 
+    /** Records that the tile was removed from Quick Settings. */
     override fun onTileRemoved() {
         persistTileAdded(false)
         super.onTileRemoved()
     }
 
+    /** Refreshes tile state each time the Quick Settings panel becomes visible. */
     override fun onStartListening() {
         super.onStartListening()
         persistTileAdded(true)
         updateTileState()
     }
 
+    /**
+     * Locks the screen unless the foreground app is excluded, applying the configured vibration
+     * and lock delay. Falls back through root and startService paths when the service instance
+     * is unavailable, and opens accessibility settings as a last resort.
+     */
     override fun onClick() {
         super.onClick()
 
@@ -55,6 +68,18 @@ class TapLockTileService : TileService() {
             } else {
                 service.lockScreen()
             }
+        } else if (RootLock.isRootLockEnabled(this)) {
+            val lockViaRoot = Runnable {
+                RootLock.performRootLock(this) { success ->
+                    if (!success) TapLockFeedback.showRootLockFailed(this)
+                }
+            }
+            val totalDelay = (if (vibrateOnLock) 100L else 0L) + lockDelay
+            if (totalDelay > 0) {
+                Handler(Looper.getMainLooper()).postDelayed(lockViaRoot, totalDelay)
+            } else {
+                lockViaRoot.run()
+            }
         } else {
             // Fallback checking if enabled
             if (isAccessibilityEnabled(this)) {
@@ -66,7 +91,7 @@ class TapLockTileService : TileService() {
                 startService(accessibilityIntent)
             } else {
                 TapLockFeedback.showAccessibilityRequired(this)
-                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+                val intent = accessibilitySettingsIntent(this).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
                 if (android.os.Build.VERSION.SDK_INT >= 34) {
@@ -85,9 +110,10 @@ class TapLockTileService : TileService() {
         }
     }
     
+    /** Updates label, icon, and availability: usable when either lock method is ready. */
     private fun updateTileState() {
         qsTile?.let { tile ->
-            val isEnabled = isAccessibilityEnabled(this)
+            val isEnabled = isAccessibilityEnabled(this) || RootLock.isRootLockEnabled(this)
 
             // STATE_INACTIVE is the correct state for a button that performs an action but doesn't have an on/off state.
             // It will appear white/grey (depending on theme) but not "highlighted/accented" like an active toggle.
@@ -100,6 +126,7 @@ class TapLockTileService : TileService() {
         }
     }
 
+    /** Persists [isAdded] so the settings screen can show whether the tile is in Quick Settings. */
     private fun persistTileAdded(isAdded: Boolean) {
         getSharedPreferences(getString(R.string.shared_pref_name), MODE_PRIVATE)
             .edit { putBoolean(getString(R.string.quick_settings_tile_added), isAdded) }

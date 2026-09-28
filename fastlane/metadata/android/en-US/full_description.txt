@@ -13,6 +13,7 @@ Additional features:
 * Adjustable double-tap timeout and lock delay
 * Optional vibration feedback with light, medium, and strong patterns
 * Per-app exclusions so taps are ignored in apps you choose
+* Optional root lock mode on rooted devices: simulates a real power button press so the screen turns off instantly, with no lock-screen flicker
 * Available in English and Spanish
 
 TapLock uses Android's accessibility service to power off the screen. This permission is required for the app to function, and TapLock does not collect any personal information or track any other interaction you have with your device. The full source code is available for transparency.
