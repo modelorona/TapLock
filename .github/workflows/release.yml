@@ -4,8 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       play_notes_en_us:
-        description: "Google Play What's new (English, up to 500 characters)"
-        required: true
+        description: "Google Play What's new (required for a new release; leave blank for recovery)"
+        required: false
+        type: string
+      recovery_play_run_id:
+        description: "Resume GitHub release from a successful Play submission run (leave blank for a new release)"
+        required: false
+        type: string
+      recovery_bundle_sha256:
+        description: "Signed AAB SHA-256 from that run (required for recovery)"
+        required: false
         type: string
 
 concurrency:
@@ -20,7 +28,7 @@ env:
 
 jobs:
   submit_play:
-    if: github.ref == 'refs/heads/main' && github.repository == 'modelorona/TapLock'
+    if: github.ref == 'refs/heads/main' && github.repository == 'modelorona/TapLock' && inputs.recovery_play_run_id == '' && inputs.recovery_bundle_sha256 == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: release
@@ -149,10 +157,12 @@ jobs:
 
   github_release:
     needs: submit_play
+    if: always() && github.ref == 'refs/heads/main' && github.repository == 'modelorona/TapLock' && (needs.submit_play.result == 'success' || inputs.recovery_play_run_id != '' || inputs.recovery_bundle_sha256 != '')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment: release
     permissions:
+      actions: read
       contents: write
       id-token: write
       attestations: write
@@ -160,12 +170,45 @@ jobs:
       VERSION: ${{ needs.submit_play.outputs.version }}
       VERSION_CODE: ${{ needs.submit_play.outputs.version_code }}
       BUNDLE_SHA256: ${{ needs.submit_play.outputs.bundle_sha256 }}
+      RELEASE_SOURCE_SHA: ${{ github.sha }}
+      PLAY_SUBMISSION_RUN_ID: ${{ github.run_id }}
       PLAY_APP_SIGNING_SHA256: ${{ vars.PLAY_APP_SIGNING_SHA256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Validate prior Play submission for recovery
+        if: inputs.recovery_play_run_id != '' || inputs.recovery_bundle_sha256 != ''
+        id: recovery
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.recovery_play_run_id }}
+          SOURCE_BUNDLE_SHA256: ${{ inputs.recovery_bundle_sha256 }}
+        run: |
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$SOURCE_BUNDLE_SHA256" =~ ^[[:xdigit:]]{64}$ ]]
+          RUN=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")
+          jq -e '.path == ".github/workflows/release.yml" and .head_branch == "main" and .event == "workflow_dispatch"' <<< "$RUN"
+          SOURCE_SHA=$(jq -er '.head_sha | select(test("^[0-9a-f]{40}$"))' <<< "$RUN")
+          JOBS=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?per_page=100")
+          jq -e '[.jobs[] | select(.name == "submit_play" and .conclusion == "success")] | length == 1' <<< "$JOBS"
+          VERSION=$(git show "$SOURCE_SHA:app/build.gradle.kts" | sed -nE 's/^[[:space:]]*versionName = "([0-9]+(\.[0-9]+){1,2})"$/\1/p')
+          CODE=$(git show "$SOURCE_SHA:app/build.gradle.kts" | sed -nE 's/^[[:space:]]*versionCode = ([0-9]+)$/\1/p')
+          [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]
+          [[ "$CODE" =~ ^[1-9][0-9]*$ ]]
+          {
+            echo "VERSION=$VERSION"
+            echo "VERSION_CODE=$CODE"
+            echo "BUNDLE_SHA256=${SOURCE_BUNDLE_SHA256,,}"
+            echo "RELEASE_SOURCE_SHA=$SOURCE_SHA"
+            echo "PLAY_SUBMISSION_RUN_ID=$SOURCE_RUN_ID"
+          } >> "$GITHUB_ENV"
+          {
+            echo "version=$VERSION"
+            echo "source_sha=$SOURCE_SHA"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
@@ -175,7 +218,7 @@ jobs:
       - name: Check tag target and install APK verification tools
         run: |
           if git show-ref --verify --quiet "refs/tags/$VERSION"; then
-            test "$(git rev-list -n 1 "$VERSION")" = "$GITHUB_SHA"
+            test "$(git rev-list -n 1 "$VERSION")" = "$RELEASE_SOURCE_SHA"
           fi
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$SDK_ROOT"
@@ -202,11 +245,13 @@ jobs:
         run: |
           APK_SHA256=$(sha256sum "dist/TapLock-$VERSION.apk" | cut -d' ' -f1)
           CERT=$(printf '%s' "$PLAY_APP_SIGNING_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')
-          jq -n --arg version "$VERSION" --arg code "$VERSION_CODE" --arg sha "$GITHUB_SHA" \
+          jq -n --arg version "$VERSION" --arg code "$VERSION_CODE" --arg sha "$RELEASE_SOURCE_SHA" \
             --arg bundle "$BUNDLE_SHA256" --arg apk "$APK_SHA256" --arg cert "$CERT" \
             --arg run "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg playRun "https://github.com/$GITHUB_REPOSITORY/actions/runs/$PLAY_SUBMISSION_RUN_ID" \
             '{versionName:$version,versionCode:$code,sourceCommit:$sha,bundleSha256:$bundle,apkSha256:$apk,
-              signingCertificateSha256:$cert,workflowRun:$run,generator:"Google Play",operation:"download-and-verify"}' \
+              signingCertificateSha256:$cert,workflowRun:$run,playSubmissionRun:$playRun,
+              generator:"Google Play",operation:"download-and-verify"}' \
             > dist/play-predicate.json
 
       - name: Attest Play APK distribution
@@ -245,9 +290,9 @@ jobs:
       - name: Publish GitHub release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ needs.submit_play.outputs.version }}
-          target_commitish: ${{ github.sha }}
-          name: ${{ needs.submit_play.outputs.version }}
+          tag_name: ${{ steps.recovery.outputs.version || needs.submit_play.outputs.version }}
+          target_commitish: ${{ steps.recovery.outputs.source_sha || github.sha }}
+          name: ${{ steps.recovery.outputs.version || needs.submit_play.outputs.version }}
           draft: false
           prerelease: false
           overwrite_files: true

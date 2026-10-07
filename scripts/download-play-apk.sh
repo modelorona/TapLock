@@ -32,8 +32,14 @@ if [[ -z "$ID" ]]; then
   exit 1
 fi
 ID=$(jq -rn --arg id "$ID" '$id | @uri')
-curl --fail --silent --show-error --max-time 180 -H "Authorization: Bearer $PLAY_ACCESS_TOKEN" \
-  "$BASE/downloads/$ID:download" -o "$TMP/release.apk"
+HTTP_STATUS=$(curl --fail --silent --show-error --location --max-time 180 \
+  -H "Authorization: Bearer $PLAY_ACCESS_TOKEN" \
+  -o "$TMP/release.apk" -w '%{http_code}' \
+  "$BASE/downloads/$ID:download?alt=media")
+if [[ "$HTTP_STATUS" != 200 || ! -s "$TMP/release.apk" ]]; then
+  echo "Play APK download returned HTTP $HTTP_STATUS without an APK." >&2
+  exit 1
+fi
 TOOLS="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
 "$TOOLS/apksigner" verify --verbose --print-certs "$TMP/release.apk" > "$TMP/signature.txt"
 ACTUAL=$(sed -nE 's/^(V[0-9.]+ Signer:|Signer #[0-9]+) certificate SHA-256 digest: ([[:xdigit:]:]+)$/\2/p' "$TMP/signature.txt" | tr -d ':' | tr '[:upper:]' '[:lower:]' | sort -u)
