@@ -14,6 +14,7 @@ import android.graphics.Rect
 import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.Display
 import android.view.Gravity
@@ -35,6 +36,7 @@ class TapLockAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "TapLock"
         private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
+        private const val FLOATING_BUTTON_ATTACH_TIMEOUT_MS = 2_000L
         @Suppress("StaticFieldLeak") // Intentional: cleared in onUnbind/onDestroy
         var instance: TapLockAccessibilityService? = null
             private set
@@ -48,6 +50,8 @@ class TapLockAccessibilityService : AccessibilityService() {
     private var bottomLeftCornerOverlay: View? = null
     private var bottomRightCornerOverlay: View? = null
     private var floatingLockButton: View? = null
+    private var floatingButtonAttachedOnce = false
+    private var floatingButtonAddedAtUptimeMs = 0L
     private var floatingButtonPreviewSizeDp: Int? = null
     private var floatingButtonPreviewOpacityPercent: Int? = null
     private val doubleTapDetector = DoubleTapDetector()
@@ -66,7 +70,11 @@ class TapLockAccessibilityService : AccessibilityService() {
     private val refreshOverlayState = Runnable {
         updateOverlayForLockScreen()
         updateOverlayTouchability()
-        updateFloatingLockButtonLayout()
+        if (floatingLockButton?.isAttachedToWindow == true) {
+            updateFloatingLockButtonLayout()
+        } else {
+            updateFloatingLockButton()
+        }
     }
 
     private data class StatusBarOverlayFrame(
@@ -255,9 +263,19 @@ class TapLockAccessibilityService : AccessibilityService() {
             return
         }
 
+        val button = floatingLockButton
+        // addView can return before attachment; avoid creating a second button during that gap.
+        if (button != null && !button.isAttachedToWindow &&
+            (floatingButtonAttachedOnce ||
+                SystemClock.uptimeMillis() - floatingButtonAddedAtUptimeMs >=
+                FLOATING_BUTTON_ATTACH_TIMEOUT_MS)
+        ) {
+            Log.w(TAG, "Floating button view detached; recreating")
+            removeFloatingLockButton()
+        }
         if (floatingLockButton == null) {
             addFloatingLockButton()
-        } else {
+        } else if (floatingLockButton?.isAttachedToWindow == true) {
             updateFloatingLockButtonLayout()
         }
     }
@@ -400,8 +418,17 @@ class TapLockAccessibilityService : AccessibilityService() {
             }
         }
 
+        button.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(view: View) {
+                if (floatingLockButton === view) floatingButtonAttachedOnce = true
+            }
+
+            override fun onViewDetachedFromWindow(view: View) = Unit
+        })
         wm.addView(button, params)
         floatingLockButton = button
+        floatingButtonAttachedOnce = button.isAttachedToWindow
+        floatingButtonAddedAtUptimeMs = SystemClock.uptimeMillis()
     }
 
     private fun updateFloatingLockButtonLayout() {
@@ -446,10 +473,14 @@ class TapLockAccessibilityService : AccessibilityService() {
     }
 
     private fun removeFloatingLockButton() {
-        floatingLockButton?.let {
-            (getSystemService(WINDOW_SERVICE) as WindowManager).removeView(it)
-        }
+        val button = floatingLockButton ?: return
         floatingLockButton = null
+        floatingButtonAttachedOnce = false
+        try {
+            (getSystemService(WINDOW_SERVICE) as WindowManager).removeViewImmediate(button)
+        } catch (_: IllegalArgumentException) {
+            // The system may already have removed the accessibility window.
+        }
     }
 
     private fun persistFloatingButtonPosition(x: Int, y: Int) {

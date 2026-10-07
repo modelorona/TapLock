@@ -674,6 +674,7 @@ fun TapLockScreen(accessibilityEnabledOverride: Boolean? = null) {
                         TapLockFloatingButtonConfig.DEFAULT_OPACITY_PERCENT
                     )
                 ).toFloat()
+                TapLockAccessibilityService.instance?.refreshFloatingLockButton()
                 isTileAdded = prefs.getBoolean(quickSettingsTileAddedKey, false)
                 excludedPackages = TapLockAppRules.getExcludedPackages(context)
                 refreshWidgetCount()
