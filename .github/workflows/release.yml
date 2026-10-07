@@ -73,8 +73,9 @@ jobs:
           [[ "$SDK" =~ ^[0-9]+$ ]]
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$SDK_ROOT"
+          # API 37 is published as the android-37.0 SDK package.
           "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" \
-            "platforms;android-$SDK" "build-tools;$ANDROID_BUILD_TOOLS"
+            "platforms;android-$SDK.0" "build-tools;$ANDROID_BUILD_TOOLS"
 
       - name: Read configured version and reject existing tags
         id: version
@@ -176,7 +177,10 @@ jobs:
           if git show-ref --verify --quiet "refs/tags/$VERSION"; then
             test "$(git rev-list -n 1 "$VERSION")" = "$GITHUB_SHA"
           fi
-          sdkmanager "build-tools;$ANDROID_BUILD_TOOLS"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK_ROOT"
+          "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" \
+            "build-tools;$ANDROID_BUILD_TOOLS"
 
       - name: Authenticate for APK download
         id: google

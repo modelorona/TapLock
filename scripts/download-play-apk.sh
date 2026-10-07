@@ -36,7 +36,7 @@ curl --fail --silent --show-error --max-time 180 -H "Authorization: Bearer $PLAY
   "$BASE/downloads/$ID:download" -o "$TMP/release.apk"
 TOOLS="$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS"
 "$TOOLS/apksigner" verify --verbose --print-certs "$TMP/release.apk" > "$TMP/signature.txt"
-ACTUAL=$(sed -nE 's/^Signer #[0-9]+ certificate SHA-256 digest: ([0-9a-fA-F:]+)$/\1/p' "$TMP/signature.txt" | tr -d ':' | tr '[:upper:]' '[:lower:]')
+ACTUAL=$(sed -nE 's/^(V[0-9.]+ Signer:|Signer #[0-9]+) certificate SHA-256 digest: ([[:xdigit:]:]+)$/\2/p' "$TMP/signature.txt" | tr -d ':' | tr '[:upper:]' '[:lower:]' | sort -u)
 if [[ "$ACTUAL" != "$CERT" ]]; then
   echo 'Downloaded APK signer does not match the configured Play signing certificate.' >&2
   exit 1
