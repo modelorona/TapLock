@@ -216,9 +216,14 @@ jobs:
           java-version: '21'
 
       - name: Check tag target and install APK verification tools
+        env:
+          RECOVERY_SOURCE_SHA: ${{ steps.recovery.outputs.source_sha }}
         run: |
           if git show-ref --verify --quiet "refs/tags/$VERSION"; then
             test "$(git rev-list -n 1 "$VERSION")" = "$RELEASE_SOURCE_SHA"
+          else
+            # A recovery run must not create a tag at its newer workflow commit.
+            test -z "$RECOVERY_SOURCE_SHA"
           fi
           SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           test -n "$SDK_ROOT"
@@ -291,7 +296,9 @@ jobs:
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ steps.recovery.outputs.version || needs.submit_play.outputs.version }}
-          target_commitish: ${{ steps.recovery.outputs.source_sha || github.sha }}
+          # GitHub ignores this when the verified tag exists. Using the current
+          # workflow commit avoids its workflow-file permission check on an older commit.
+          target_commitish: ${{ github.sha }}
           name: ${{ steps.recovery.outputs.version || needs.submit_play.outputs.version }}
           draft: false
           prerelease: false
