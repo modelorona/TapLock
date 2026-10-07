@@ -71,7 +71,10 @@ jobs:
           [[ "${UPLOAD_CERT//:/}" =~ ^[[:xdigit:]]{64}$ ]]
           SDK=$(sed -nE 's/^[[:space:]]*compileSdk = ([0-9]+)$/\1/p' app/build.gradle.kts)
           [[ "$SDK" =~ ^[0-9]+$ ]]
-          sdkmanager "platforms;android-$SDK" "build-tools;$ANDROID_BUILD_TOOLS"
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          test -n "$SDK_ROOT"
+          "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" \
+            "platforms;android-$SDK" "build-tools;$ANDROID_BUILD_TOOLS"
 
       - name: Read configured version and reject existing tags
         id: version
